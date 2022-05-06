@@ -1,0 +1,34 @@
+extends ../layout
+include ../mixins/book-table
+//- data
+    series: s,
+    totalPages,
+    totalRead,
+    percentRead,
+    inError
+block content
+    div
+        span.h1.me-2 #{title}
+
+    .container
+        .row
+            each colIndex in [0, 1, 2]
+                .col
+                    each element, index in data
+                        if index % 3 === colIndex
+                            .card
+                                .card-body
+                                    .card-title #{element.series.name} (#{element.series.books.length} tomes)
+                                    .card-text
+                                        .progress
+                                            .progress-bar(
+                                                class=`${+element.percentRead === 100 ? 'bg-success' : ''} ${element.inError ? 'bg-danger' : ''}`
+                                                role="progressbar"
+                                                style=`width: ${element.percentRead}%;`
+                                                aria-valuenow=`${element.percentRead}`
+                                                aria-valuemin="0"
+                                                aria-valuemax="100"
+                                            ) #{element.totalRead}/#{element.totalPages}
+                                        ul
+                                            each book in element.orderedBooks
+                                                li #{book.volume} - #{book.title}
