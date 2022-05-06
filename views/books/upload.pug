@@ -1,0 +1,12 @@
+extends ../layout
+
+block content
+    h1 Mettre à jour ma collection
+    form(method="POST" action="./upload")
+        .mb-3
+            label.form-label(for="login") Identifiant
+            input.form-control(type="text" name="login" id="login" placeholder="Identifiant" required autofocus)
+        .mb-3
+            label.form-label(for="password" class="sr-only") Mot de passe
+            input.form-control(type="password" name="password" id="password" class="form-control" placeholder="Mot de passe" required)
+        button.btn.btn-primary(type="submit") Lancer la mise a jour

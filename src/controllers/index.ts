@@ -1,0 +1,5 @@
+export {BookController} from './book-controller'
+export {AuthenticationController} from './authentication-controller'
+export {BrowserController} from './browser-controller'
+export {SequelizeController} from './sequelize-controller'
+export {WorkerController} from './worker-controller'

@@ -1,0 +1,15 @@
+extends layout
+
+block content
+    h1 Bienvenue
+    form(method="POST" action="login")
+        .mb-3
+            label.form-label(for="login") Identifiant
+            input.form-control(type="text" name="login" id="login" placeholder="Identifiant" required autofocus)
+        .mb-3
+            label.form-label(for="password" class="sr-only") Mot de passe
+            input.form-control(type="password" name="password" id="password" class="form-control" placeholder="Mot de passe" required)
+        .mb-3.form-check
+            input(type="checkbox" value="remember-me" name="remember-me").form-check-input#remember-me
+            label.form-check-label(for="remember-me") Se souvenir de moi
+        button.btn.btn-primary(type="submit") Se connecter

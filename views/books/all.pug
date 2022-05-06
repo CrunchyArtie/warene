@@ -1,0 +1,11 @@
+extends ../layout
+include ../mixins/book-table
+
+block content
+    div
+        span.h1.me-2 Ma collection
+        span.h3 (#{books.filter(b => b.isRead).length} lus sur #{books.length})
+
+    a(href=`/books/all`).btn.btn-light
+        i.bi.bi-arrow-repeat
+    +book-table(books)

@@ -1,0 +1,135 @@
+//- Declaration
+mixin book-table(books)
+    button.btn.btn-light(onClick='toggleLegend()') Légende
+    div(style="position: relative")
+        table.table#legend(style="display: none;position: absolute; max-width: 50%")
+            tr.table-primary
+                    td
+                        i.bi.bi-check-lg Collection
+                    td
+                        i.bi.bi-check-lg Lu
+                    td
+                        i.bi.bi-x-lg Prété
+            tr.table-secondary
+                    td
+                        i.bi.bi-check-lg Collection
+                    td
+                        i.bi.bi-check-lg Lu
+                    td
+                        i.bi.bi-check-lg Prété
+            tr.table-success
+                    td
+                        i.bi.bi-check-lg Collection
+                    td
+                        i.bi.bi-x-lg Lu
+                    td
+                        i.bi.bi-x-lg Prété
+            tr.table-danger
+                    td
+                        i.bi.bi-check-lg Collection
+                    td
+                        i.bi.bi-x-lg Lu
+                    td
+                        i.bi.bi-check-lg Prété
+            tr.table-warning
+                    td
+                        i.bi.bi-x-lg Collection
+                    td
+                        i.bi.bi-check-lg Lu
+                    td
+                        i.bi.bi-x-lg Prété
+            tr.table-info
+                    td
+                        i.bi.bi-x-lg Collection
+                    td
+                        i.bi.bi-check-lg Lu
+                    td
+                        i.bi.bi-check-lg Prété
+            tr.table-light
+                    td
+                        i.bi.bi-x-lg Collection
+                    td
+                        i.bi.bi-x-lg Lu
+                    td
+                        i.bi.bi-x-lg Prété
+            tr.table-dark
+                    td
+                        i.bi.bi-x-lg Collection
+                    td
+                        i.bi.bi-x-lg Lu
+                    td
+                        i.bi.bi-check-lg Prété
+        table.table
+            thead
+                th(scope='col')
+                    input#filterText(onchange='filterTitle()' placeholder='Titre')
+                th(scope='col') Catégorie
+                th(scope='col') EAN
+                th(scope='col') Date
+                th(scope='col') Editeur
+                th(scope='col') Auteurs
+                th(scope='col') Pages
+                th(scope='col')
+            tbody
+                each book in books
+                    tr.book-line(scope='row'
+                        class=book.inCollection && book.isRead && !book.LentTo && 'table-primary'
+                        class=book.inCollection && book.isRead && !!book.LentTo && 'table-secondary'
+                        class=book.inCollection && !book.isRead && !book.LentTo && 'table-success'
+                        class=book.inCollection && !book.isRead && !!book.LentTo && 'table-danger'
+                        class=!book.inCollection && book.isRead && !book.LentTo && 'table-warning'
+                        class=!book.inCollection && book.isRead && !!book.LentTo && 'table-info'
+                        class=!book.inCollection && !book.isRead && !book.LentTo && 'table-light'
+                        class=!book.inCollection && !book.isRead && !!book.LentTo && 'table-dark'
+                        id=`${book.europeanArticleNumber}`
+                    )
+                        td.title #{book.prettyTitle}
+                        td #{book.category && book.category.name}
+                        td
+                        // td #{book.volume}
+                        td #{book.publishDate.getDate()}.#{book.publishDate.getMonth() + 1}.#{book.publishDate.getFullYear()}
+                        td #{book.publisher && book.publisher.name}
+                        td
+                            each author in (book.authors || [])
+                                div #{author.name}
+                        td #{book.pageCount}
+                        td
+                            a(href=`/books/refresh/${book.europeanArticleNumber}`).btn.btn-light
+                                i.bi.bi-arrow-repeat
+    script.
+        let books = [];
+        for(let b of document.getElementsByClassName('book-line')) {
+            books.push(b);
+        }
+
+        function filterTitle() {
+            let filteredBooks = []
+            let filterStr = document.getElementById('filterText').value;
+
+            if (filterStr === "") {
+                filteredBooks = books.slice();
+            } else {
+                filteredBooks = books.slice().filter(line => {
+                    for(let titleElement of line.getElementsByClassName('title')) {
+                        if (titleElement.innerHTML.toLowerCase().includes(filterStr.toLowerCase())) {
+                            return true
+                        }
+                    }
+                    return false
+                });
+            }
+
+            for (let book of books) {
+                book.style.display = 'none';
+            }
+            for (let book of filteredBooks) {
+                book.style.display = 'table-row';
+            }
+        }
+
+    script.
+        let showLegend = false
+        function toggleLegend() {
+            showLegend = !showLegend;
+            document.getElementById('legend').style.display = showLegend ? 'table' : 'none';
+        }
