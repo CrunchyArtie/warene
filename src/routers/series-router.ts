@@ -1,6 +1,7 @@
 import express from 'express';
 import debugFactory from 'debug';
 import {Series, Book} from '../models';
+import {WorkerController} from '../controllers';
 
 const debug = debugFactory('warene:seriesRouter');
 
@@ -12,7 +13,8 @@ seriesRouter.get('/', async function (req, res, next) {
     const arrAvg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length
     let data = series.map(s => {
         const inError = s.books.filter(b => !b.pageCount || b.pageCount === 0)
-        const averagePagesInVolume = Math.round(arrAvg(s.books.map(b => b.pageCount || 0).filter(c => !0))) || 100;
+        debug('debug', s.name, Math.round(arrAvg(s.books.map(b => b.pageCount || 0).filter(c => c !== 0))))
+        const averagePagesInVolume = Math.round(arrAvg(s.books.map(b => b.pageCount || 0).filter(c => c !== 0))) || 100;
         const totalInError = inError.length * averagePagesInVolume;
         const totalPages = s.books.map(b => b.pageCount || 0).reduce((a, b) => a + b, 0) + totalInError;
         const readyToRead = s.books.filter(b => !b.isRead && !b.lentTo && b.inCollection)
@@ -26,30 +28,44 @@ seriesRouter.get('/', async function (req, res, next) {
         }
     })
 
-    const inErrors = data.filter(s => s.series.books.every(b => (b.pageCount || 0) === 0)).sort((a, b) => a.series.books.length - b.series.books.length)
-    debug('debug', 'inErrors', inErrors.map(d => d.series.name))
-    data = data.filter(s => !inErrors.includes(s)).sort((a, b) => a.totalReadyToRead - b.totalReadyToRead)
-    const complete = data.filter(s => s.series.books.every(b => b.isRead)).sort((a, b) => a.series.name < b.series.name ? -1 : 1);
+    const complete = data.filter(s => s.series.isAllBooksRead).sort((a, b) => a.series.name < b.series.name ? -1 : 1);
     data = data.filter(s => !complete.includes(s))
-    const owned = data.filter(s => s.series.books.every(b => b.inCollection)).sort((a, b) => a.totalReadyToRead - b.totalReadyToRead)
-    data = data.filter(s => !owned.includes(s)).sort((a, b) => a.totalReadyToRead - b.totalReadyToRead)
 
+    const inErrors = data.filter(s => s.series.books.every(b => (b.pageCount || 0) === 0)).sort((a, b) => a.series.books.length - b.series.books.length)
+    data = data.filter(s => !inErrors.includes(s))
+
+    const owned = data.filter(s => s.series.isAllBooksInCollection)
+    data = data.filter(s => !owned.includes(s))
+
+    const notOwnedButSomeOwnedAndNotTotallyRead = data.filter(s => s.totalReadyToRead > 0)
+    const notOwnedButReadAllOwned = data.filter(s => !notOwnedButSomeOwnedAndNotTotallyRead.includes(s))
 
     res.render('series/all', {
         title: 'Collections', data: {
-            owned,
-            data,
-            inErrors,
-            complete
+            owned: owned.sort((a, b) => a.totalReadyToRead - b.totalReadyToRead),
+            data: [
+                ...notOwnedButSomeOwnedAndNotTotallyRead.sort((a, b) => a.totalReadyToRead - b.totalReadyToRead),
+                ...notOwnedButReadAllOwned.sort((a, b) =>
+                    a.series.booksNotInCollection.reduce((c, b) => c + (b.pageCount || 0) , 0)
+                    - b.series.booksNotInCollection.reduce((c, b) => c + (b.pageCount || 0), 0)
+                )
+            ],
+            inErrors: inErrors.sort((a, b) => a.series.name < b.series.name ? -1 : 1),
+            complete: complete.sort((a, b) => a.series.name < b.series.name ? -1 : 1)
         }
     });
 });
 
-seriesRouter.get('/:id', async function (req, res, next) {
-    debug('trace', 'get', '/:id')
-    const books = await Book.findAll({
-        where: {seriesId: req.body.id},
-        include: [Series]
-    })
-    res.render('series/detail', {title: books[0]?.series?.name || 'Oups', books});
+seriesRouter.get('/complete/:id', async function (req, res, next) {
+    debug('trace', 'get', '/complete')
+    debug('debug', req.params.id)
+
+    if (!!req.params.id) {
+        await WorkerController.refreshSeries(req.session.user!, +req.params.id);
+    } else {
+        await WorkerController.refreshAllSeries(req.session.user!);
+    }
+
+    res.redirect('/series');
 });
+

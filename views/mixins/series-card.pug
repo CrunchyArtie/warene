@@ -1,0 +1,53 @@
+//- Declaration
+include ./tag
+
+mixin series-card(series, averagePagesInVolume, totalPages)
+    .card.mt-4
+        h5.card-header #{series.name}
+        .card-body
+            .card-text
+                .progress
+                    - series.books.sort((a, b) => a.volume - b.volume)
+                    each book in series.books
+                        if !book.isRead && !book.inCollection && (book.pageCount || 0) !== 0
+                        else
+                            .progress-bar(
+                                data-european-article-number=book.europeanArticleNumber
+                                class=`
+                                    ${((book.pageCount || 0) === 0 ? "bg-danger" : '')}
+                                    ${((book.pageCount || 0) !== 0 ? "bg-success" : '')}
+                                    ${((!book.isRead) && book.inCollection ? "bg-info" : '')}`
+                                role="progressbar"
+                                style=`width: ${((book.pageCount || averagePagesInVolume)) / totalPages * 100}%;`
+                                aria-valuenow=`${(book.pageCount || averagePagesInVolume)}`
+                                aria-valuemin="0"
+                                aria-valuemax=(totalPages)
+                            ) #{(book.pageCount || 0) === 0 && book.isRead ? 'lu' : ''}
+        ul.list-group.list-group-flush
+            li.list-group-item
+                if series.books.length > 1
+                    if series.isAllBooksRead
+                        +tag-success #{series.books.length} tomes
+                    else
+                        +tag-success #{series.booksRead.length}/#{series.books.length} lus
+                        +tag-info #{series.booksInCollection.length}/#{series.books.length} acquis
+
+                    +tag-light #{averagePagesInVolume} pages / tome
+                else
+                    span.badge.text-bg-info.me-1 Tome unique
+                    if (series.books[0].pageCount || 0) !== 0
+                        span.badge.text-bg-info.me-1 #{series.books[0].pageCount} pages
+        .card-body
+            a.float-end(href=`/series/complete/${series.id}`).btn.btn-light Compléter
+
+    script.
+        for (const element of document.getElementsByClassName('progress-bar')) {
+            element.onclick = () => {
+                goTo(element.getAttribute('data-european-article-number'))
+            }
+        }
+
+        function goTo(id) {
+            console.log(id)
+            window.location.href = '/books/own#' + id
+        }

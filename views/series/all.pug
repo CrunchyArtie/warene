@@ -1,39 +1,23 @@
 extends ../layout
-include ../mixins/book-table
-//- data
-    series: s,
-    totalPages,
-    totalRead,
-    percentRead,
-    inError
-block content
-    div
-        span.h1.me-2 #{title}
+include ../mixins/series-card
+include ../mixins/tag
 
-    .container
-        - var titles = {'owned' : 'Collection à jour', 'data' : 'Collection non à jour', 'inErrors' : 'Manque d\'information', 'complete' : 'Lus'}
-        each seriesTypeList in ['owned', 'data', 'inErrors', 'complete']
-            .row
-                h2 #{titles[seriesTypeList]}
-                each element, index in data[seriesTypeList]
-                    // if index % 3 === colIndex
-                    .card
-                        .card-body
-                            .card-title #{element.series.name} - #{element.series.books.length > 1 ? `${element.series.books.length} tomes de ${element.averagePagesInVolume} pages chacun` : `${element.series.books.length === 1 && (element.series.books[0].pageCount || 0) === 0 ? '?' : element.averagePagesInVolume} pages`}
-                            .card-text
-                                .progress
-                                    - element.series.books.sort((a, b) => a.volume - b.volume)
-                                    each book in element.series.books
-                                        if !book.isRead && !book.inCollection && (book.pageCount || 0) !== 0
-                                        else
-                                            .progress-bar(
-                                                class=`
-                                                    ${((book.pageCount || 0) === 0 ? "bg-danger" : '')}
-                                                    ${((book.pageCount || 0) !== 0 ? "bg-success" : '')}
-                                                    ${((!book.isRead) && book.inCollection ? "bg-info" : '')}`
-                                                role="progressbar"
-                                                style=`width: ${((book.pageCount || element.averagePagesInVolume)) / element.totalPages * 100}%;`
-                                                aria-valuenow=`${(book.pageCount || element.averagePagesInVolume)}`
-                                                aria-valuemin="0"
-                                                aria-valuemax=(element.totalPages)
-                                            ) #{(book.pageCount || 0) === 0 && book.isRead ? 'lu' : ''}
+block content
+    .series-page
+        div
+            span.h1.me-2 #{title}
+
+        .container
+            - var titles = {'owned' : ' à lire', 'data' : ' non à acquérir', 'inErrors' : ' en manque d\'informations', 'complete' : ' lus'}
+            #accordionExample.accordion
+                each seriesTypeList in ['owned', 'data', 'inErrors', 'complete']
+                    .accordion-item
+                        h2(id='#heading-' + seriesTypeList).accordion-header
+                            .accordion-button(type="button" data-bs-toggle="collapse" data-bs-target=`#collapse-${seriesTypeList}` aria-expanded="true" aria-controls=`collapse-${seriesTypeList}`)
+                                | #{data[seriesTypeList].length} collections #{titles[seriesTypeList]}
+                        .accordion-collapse.collapse.show(id='collapse-' + seriesTypeList aria-labelledby=`heading-${seriesTypeList}` data-bs-parent="#accordionExample")
+                            .accordion-body
+                                .row
+                                    each element, index in data[seriesTypeList]
+                                        .col-sm-12.col-md-4.col-3
+                                            +series-card(element.series, element.averagePagesInVolume, element.totalPages)

@@ -1,0 +1,38 @@
+mixin tag(state)
+    - var stateClass = !!state ? 'text-bg-'+state : ''
+    span.rounded-pill.badge(class=stateClass).me-1
+        if block
+            block
+
+mixin tag-primary()
+    +tag('primary')
+        if block
+            block
+mixin tag-secondary()
+    +tag('secondary')
+        if block
+            block
+mixin tag-success()
+    +tag('success')
+        if block
+            block
+mixin tag-danger()
+    +tag('danger')
+        if block
+            block
+mixin tag-warning()
+    +tag('warning')
+        if block
+            block
+mixin tag-info()
+    +tag('info')
+        if block
+            block
+mixin tag-light()
+    +tag('light')
+        if block
+            block
+mixin tag-dark()
+    +tag('dark')
+        if block
+            block

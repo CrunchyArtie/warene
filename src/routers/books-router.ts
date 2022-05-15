@@ -1,5 +1,5 @@
 import express from 'express';
-import {BookController, BrowserController} from '../controllers';
+import {BookController, BrowserController, WorkerController} from '../controllers';
 import debugFactory from 'debug';
 import {Job, JobState, User} from '../models';
 
@@ -54,15 +54,14 @@ booksRouter.post('/upload', async function (req, res, next) {
     res.redirect('/books');
 });
 
-booksRouter.get('/complete', async function (req, res, next) {
+booksRouter.get('/complete/:id', async function (req, res, next) {
     debug('trace', 'get', '/complete')
-    await Job.create({
-        type: 'complete',
-        creatorId: req.session.user?.id,
-        details: {
-            state: 'initialize'
-        }
-    });
+
+    if (!!req.body.id) {
+        await WorkerController.refreshSeries(req.session.user!, req.body.id);
+    } else {
+        await WorkerController.refreshAllSeries(req.session.user!);
+    }
 
     res.redirect('/books');
 });

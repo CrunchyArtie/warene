@@ -12,6 +12,7 @@ import debugFactory from 'debug';
 import BookController from './book-controller';
 import BrowserController from './browser-controller';
 import '../utils/sequelize'
+import {Server} from 'socket.io';
 
 const debug = debugFactory('warene:workerController');
 
@@ -32,10 +33,32 @@ class WorkerController {
     }
 
     public async work() {
+
+        const io = new Server();
+        const clients: any[] = [];
+
+        io.on('connection', (socket) => {
+            clients.push(socket);
+
+            debug('debug', 'to server: ping ?')
+            socket.emit('ping');
+
+            socket.on('pong', (...args) => {
+                debug('debug', 'from server: pong')
+            })
+        });
+
+
+        let ioPort = 3001;
+        if (!!process.env.WORKER_SOCKET_PORT && Number.isInteger(process.env.WORKER_SOCKET_PORT)) {
+            ioPort = +process.env.WORKER_SOCKET_PORT
+        }
+        io.listen(ioPort || 3001);
+
         debug('trace', 'work');
         let loopIndex = 0;
         while (true) {
-            if(!(await this.shouldRun())) {
+            if (!(await this.shouldRun())) {
                 debug('debug', 'worker is not working')
                 loopIndex = 0;
                 await this.sleep(1500)
@@ -65,10 +88,12 @@ class WorkerController {
                         const state = await this.actions[job.type](job);
                         job = await job.reload()
                         job.state = state || JobState.completed;
-                        await job.save();
+                        job = await job.save();
+                        // @ts-ignore
+                        clients.forEach(c => c.emit('job-done', job?.toJSON()))
                         debug('debug', job.id, 'done.');
                     } catch (err) {
-                        if(JSON.stringify(err).toLowerCase().includes('timeout')) {
+                        if (JSON.stringify(err).toLowerCase().includes('timeout')) {
                             loopIndex = -1;
                         }
                         debug('debug', job.id, 'error');
@@ -97,7 +122,7 @@ class WorkerController {
                         }
                     }
 
-                    if(loopIndex === -1 || loopIndex > 50) {
+                    if (loopIndex === -1 || loopIndex > 50) {
                         debug('info', '50 jobs, we go to sleep 2 minutes')
                         loopIndex = 0;
                         await this.sleep(2 * 60 * 1000)
@@ -173,7 +198,7 @@ class WorkerController {
                 }
             });
             // on se compte pas soi meme
-            if ((childrenIds.length -1) === count) {
+            if ((childrenIds.length - 1) === count) {
                 parentJob.state = JobState.resume;
                 await parentJob.save()
             }
@@ -190,17 +215,8 @@ class WorkerController {
             }
             case 'completeUrlOfSeries': {
                 await this.refreshAllBooksOfUser(job);
-                job.details.state = 'refreshAllBooksOfUser'
-                await job.save();
-                return JobState.waiting
-            }
-            case 'refreshAllBooksOfUser': {
-                await this.refreshAllBooksOfUser(job);
                 job.details.state = 'done'
                 await job.save();
-                return;
-            }
-            case 'done': {
                 return;
             }
         }
@@ -213,12 +229,23 @@ class WorkerController {
     }
 
     private async initializeCompleteJob(job: Job<CompleteJobDetails>) {
+        debug('trace', 'initializeCompleteJob')
+        debug('debug', job.details)
         const user = await User.findOne({where: {id: job.creatorId}})
         if (!user) {
             throw new Error('User not found');
         }
-        const seriesToComplete = await BookController.getSeriesOfUser(user);
-        job.details.series = seriesToComplete.map(s => s.id);
+
+        debug('debug', 'job.details.series', job.details.series)
+        debug('debug', '!job.details.series', !job.details.series)
+        debug('debug', 'job.details.series.length == 0', job.details.series.length == 0)
+        debug('debug', '!job.details.series || job.details.series.length == 0', !job.details.series || job.details.series.length == 0)
+
+        if(!job.details.series || job.details.series.length == 0) {
+            const seriesToComplete = await BookController.getSeriesOfUser(user);
+            job.details.series = seriesToComplete.map(s => s.id);
+        }
+
         job.details.childrenJobIds = job.details.childrenJobIds || [];
 
         for (const seriesId of job.details.series) {
@@ -280,7 +307,7 @@ class WorkerController {
         if (user === null) {
             throw new Error('user not found');
         }
-        const seriesList = await BookController.getSeriesOfUser(user);
+        const seriesList = (await BookController.getSeriesOfUser(user)).filter(s => job.details.series.includes(s.id));
         const books = await BookController.getBooksFromSeries(...seriesList)
 
         job.details.childrenJobIds = job.details.childrenJobIds || [];
@@ -302,6 +329,31 @@ class WorkerController {
 
     private async shouldRun() {
         return (await Config.findOne({where: {name: 'worker-is-running'}}))?.value === 'true' || false
+    }
+
+    public async refreshAllSeries(user: User) {
+        debug('trace', 'refreshAllSeries')
+        return await Job.create({
+            type: 'complete',
+            creatorId: user.id,
+            details: {
+                state: 'initialize'
+            }
+        });
+    }
+
+    public async refreshSeries(user: User, id: number) {
+        debug('trace', 'refreshAllSeries')
+        debug('debug', id)
+
+        return await Job.create({
+            type: 'complete',
+            creatorId: user.id,
+            details: {
+                series: [id],
+                state: 'initialize'
+            }
+        });
     }
 }
 

@@ -1,0 +1,10 @@
+//- Declaration
+mixin toast(title='Hey ! Listen !', body, subtitle)
+    .toast-container.top-0.end-0.p-3
+        .toast#toast(role="alert" aria-live="assertive" aria-atomic="true").bottom-0.end-0
+            .toast-header
+                strong.me-auto #{title}
+                if subtitle
+                    small #{subtitle}
+                button(type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close")
+            .toast-body #{body}

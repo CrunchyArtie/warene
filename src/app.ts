@@ -7,7 +7,6 @@ import livereload from 'livereload';
 import connectLivereload from 'connect-livereload';
 import session from 'express-session';
 import connect_session_sequelize from 'connect-session-sequelize';
-
 import debugFactory from 'debug';
 import {IsAuthenticated} from './middlewares';
 import {
@@ -44,7 +43,7 @@ app.set('view engine', 'pug');
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 app.use(cookieParser(process.env.COOKIE_SECRET || 'thisismysecrctekeyfhrgfgrfrty84fwir767'));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../public')));
 app.use(bodyParser.urlencoded({extended: true}));
 
 const ninetyDay = 90 * 24 * 60 * 60 * 1000;

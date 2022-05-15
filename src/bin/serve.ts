@@ -6,6 +6,8 @@ import {app} from "../app";
 import debugFactory from "debug";
 import http from "http";
 import ErrnoException = NodeJS.ErrnoException;
+import {Server} from 'socket.io';
+import IoController from '../controllers/io-controller';
 
 /**
  * Module dependencies.
@@ -22,6 +24,9 @@ app.set('port', port);
  * Create HTTP server.
  */
 const serve = http.createServer(app);
+
+const io = new Server(serve);
+IoController.register(io);
 
 /**
  * Listen on provided port, on all network interfaces.

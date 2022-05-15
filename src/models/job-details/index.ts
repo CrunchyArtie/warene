@@ -6,4 +6,4 @@ export * from './job-details';
 export * from './parent-job-details';
 export * from './type';
 export * from './upload-job-detail';
-export {RefreshBookJobDetails} from './refresh-book-job-details';
+export * from './refresh-book-job-details';
