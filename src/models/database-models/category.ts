@@ -1,6 +1,5 @@
 import {Column, HasMany, Model, Table} from 'sequelize-typescript';
 import {Book} from './book';
-import {SequelizeController} from '../controllers';
 
 @Table
 export class Category extends Model {
@@ -11,5 +10,4 @@ export class Category extends Model {
     books!: Book[]
 }
 
-// SequelizeController.addModels([Category])
 

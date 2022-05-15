@@ -4,14 +4,16 @@ dotenv.config();
 import session from 'express-session';
 import connect_session_sequelize from 'connect-session-sequelize';
 import debugFactory from 'debug';
-import {AuthenticationController, SequelizeController} from '../controllers';
+import {AuthenticationController} from '../controllers';
 import {Job, User, Author, Book, BookAuthor, BookUser, Category, Collection, Publisher, Series, Type} from '../models';
+import Sequelize from '../utils/sequelize';
+import {Config} from '../models';
 const debug = debugFactory('warene:init');
 
 const SequelizeStore = connect_session_sequelize(session.Store);
 
 new SequelizeStore({
-    db: SequelizeController
+    db: Sequelize
 }).sync()
 
 debug('info', 'Session ok');
@@ -27,7 +29,8 @@ Promise.all([
     Publisher.sync().then(() => debug('info', 'Publisher created')),
     Series.sync().then(() => debug('info', 'Series created')),
     Type.sync().then(() => debug('info', 'Type created')),
-    Job.sync().then(() => debug('info', 'Job created'))
+    Job.sync().then(() => debug('info', 'Job created')),
+    Config.sync().then(() => debug('info', 'Config created'))
 ]).then(async () => {
 
     await User.findOrCreate({
@@ -39,4 +42,14 @@ Promise.all([
         }
     })
     debug('info', 'Admin created');
+
+    await Config.findOrCreate({
+        where: {
+            name: 'worker-is-running'
+        }, defaults: {
+            name: 'worker-is-running',
+            value: 'true'
+        }
+    })
+    debug('info', 'Config filled');
 })

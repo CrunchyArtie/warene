@@ -61,6 +61,7 @@ mixin book-table(books)
                         i.bi.bi-check-lg Prété
         table.table
             thead
+                td(scope='col') #
                 th(scope='col')
                     input#filterText(onchange='filterTitle()' placeholder='Titre')
                 th(scope='col') Catégorie
@@ -71,7 +72,7 @@ mixin book-table(books)
                 th(scope='col') Pages
                 th(scope='col')
             tbody
-                each book in books
+                each book, index in books
                     tr.book-line(scope='row'
                         class=book.inCollection && book.isRead && !book.LentTo && 'table-primary'
                         class=book.inCollection && book.isRead && !!book.LentTo && 'table-secondary'
@@ -83,11 +84,15 @@ mixin book-table(books)
                         class=!book.inCollection && !book.isRead && !!book.LentTo && 'table-dark'
                         id=`${book.europeanArticleNumber}`
                     )
+                        td #{index + 1}
                         td.title #{book.prettyTitle}
                         td #{book.category && book.category.name}
                         td
+                            a(href=`/goto${book.link}` target="_blank") #{book.europeanArticleNumber}
                         // td #{book.volume}
-                        td #{book.publishDate.getDate()}.#{book.publishDate.getMonth() + 1}.#{book.publishDate.getFullYear()}
+                        td
+                            if book.publishDate
+                                | #{book.publishDate.getDate()}.#{book.publishDate.getMonth() + 1}.#{book.publishDate.getFullYear()}
                         td #{book.publisher && book.publisher.name}
                         td
                             each author in (book.authors || [])
@@ -111,7 +116,7 @@ mixin book-table(books)
             } else {
                 filteredBooks = books.slice().filter(line => {
                     for(let titleElement of line.getElementsByClassName('title')) {
-                        if (titleElement.innerHTML.toLowerCase().includes(filterStr.toLowerCase())) {
+                        if (titleElement.innerHTML.toLowerCase().normalize("NFD").includes(filterStr.toLowerCase().normalize("NFD"))) {
                             return true
                         }
                     }

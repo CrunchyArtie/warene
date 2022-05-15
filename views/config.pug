@@ -1,0 +1,13 @@
+extends layout
+
+block content
+    div
+        span.h1.me-2 Config
+
+        table
+            thead
+                th Clé
+                th valeur
+            each key in config
+                td #{key.name}
+                td #{key.value}

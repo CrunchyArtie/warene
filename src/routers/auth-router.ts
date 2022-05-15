@@ -1,6 +1,6 @@
 import express from 'express';
 
-import {AuthenticationController} from '../controllers/authentication-controller';
+import AuthenticationController from '../controllers/authentication-controller';
 
 export const authRouter = express.Router();
 authRouter.get('/', function (req, res, next) {

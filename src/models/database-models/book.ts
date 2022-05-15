@@ -9,7 +9,7 @@ import {
     Table, Unique,
     UpdatedAt
 } from 'sequelize-typescript'
-import {Author, BookAuthor, BookUser, Category, Collection, Publisher, Series, Type, User} from './index';
+import {Author, BookAuthor, BookUser, Category, Collection, Publisher, Series, Type, User} from '../index';
 
 @Table
 export class Book extends Model {

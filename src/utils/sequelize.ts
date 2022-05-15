@@ -1,8 +1,7 @@
 import { Sequelize } from 'sequelize-typescript'
-import {Author, Book, BookAuthor, BookUser, Category, Collection, Publisher, Series, Type, User} from '../models';
-import {Job} from '../models/job';
+import {Config, Job, Author, Book, BookAuthor, BookUser, Category, Collection, Publisher, Series, Type, User} from '../models';
 
-export const SequelizeController = new Sequelize({
+const sequelizeInstance = new Sequelize({
     database: process.env.DATABASE_NAME || 'warene',
     dialect: 'sqlite',
     username: process.env.DATABASE_USERNAME || 'root',
@@ -20,7 +19,9 @@ export const SequelizeController = new Sequelize({
         Series,
         Type,
         User,
-        Job
+        Job,
+        Config,
     ]
 })
 
+export default sequelizeInstance

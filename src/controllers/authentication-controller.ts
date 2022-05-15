@@ -2,8 +2,8 @@ import bcrypt from 'bcrypt';
 import {User} from '../models';
 
 
-export const AuthenticationController = {
-    authenticate: async (username: string, password: string) => {
+class AuthenticationController {
+    public async authenticate (username: string, password: string): Promise<User | null> {
         const user = await User.findOne({
             where: {username}
         })
@@ -12,18 +12,22 @@ export const AuthenticationController = {
             return null;
         }
 
-        if (!AuthenticationController.compare(password, user.password)) {
+        if (!this.compare(password, user.password)) {
             return null
         }
 
         return user;
 
-    },
-    hashPassword: (pwd: string) => {
+    }
+
+    hashPassword(pwd: string): string {
         const salt = bcrypt.genSaltSync(10)
         return bcrypt.hashSync(pwd, salt)
-    },
-    compare: (password: string, hash: string) => {
+    }
+
+    compare(password: string, hash: string): boolean {
         return bcrypt.compareSync(password, hash)
     }
 }
+
+export default new AuthenticationController();

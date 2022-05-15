@@ -1,0 +1,13 @@
+{
+    "verbose": true,
+    "ignore": [
+        ".git",
+        "node_modules/**/node_modules"
+    ],
+    "watch": [
+        "src/"
+    ],
+    "ext": "js,json,pug,ts",
+    "exec": "node --inspect --require ts-node/register src/bin/worker.ts",
+    "delay": 600
+}

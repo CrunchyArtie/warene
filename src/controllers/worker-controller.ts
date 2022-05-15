@@ -1,32 +1,52 @@
-import {Job} from '../models';
+import {
+    Book, ChildJobDetails,
+    CompleteJobDetails,
+    CompleteUrlOfSeriesJobDetails, Config, CreateBooksIfNotExisingJobDetails,
+    Job,
+    JobState, ParentJobDetails, RefreshBookJobDetails,
+    Series,
+    UploadJobDetail,
+    User
+} from '../models';
 import debugFactory from 'debug';
-import {BookController} from './book-controller';
-import {CompleteEachJobDetail, CompleteJobDetail, ReloadCompleteJobDetail, UploadJobDetail} from '../models/job';
+import BookController from './book-controller';
+import BrowserController from './browser-controller';
+import '../utils/sequelize'
 
 const debug = debugFactory('warene:workerController');
 
-export const WorkerController = {
-    actions: {
-        complete: async (job: Job<CompleteJobDetail>) => BookController.complete(job),
-        completeEach: async (job: Job<CompleteEachJobDetail>) => BookController.completeEach(job),
-        'reload-complete': async (job: Job<ReloadCompleteJobDetail>) => BookController.reloadComplete(job),
-        upload: async (job: Job<UploadJobDetail>) => BookController.upload(job)
-    },
-    sleep(ms: number) {
+class WorkerController {
+    private actions: { [jobName: string]: (job: Job<any>) => Promise<JobState | void> } = {
+        complete: async (job: Job<CompleteJobDetails>) => this.complete(job),
+        completeUrlOfSeries: async (job: Job<CompleteUrlOfSeriesJobDetails>) => this.completeUrlOfSeries(job),
+        createBooksIfNotExising: async (job: Job<CreateBooksIfNotExisingJobDetails>) => this.createBooksIfNotExising(job),
+        refreshBook: async (job: Job<RefreshBookJobDetails>) => this.refreshBook(job),
+        upload: async (job: Job<UploadJobDetail>) => this.upload(job)
+    }
+
+    private sleep(ms: number) {
         debug('trace', 'sleep');
         return new Promise((resolve) => {
             setTimeout(resolve, ms);
         });
-    },
-    work: async () => {
-        debug('trace', 'work');
+    }
 
+    public async work() {
+        debug('trace', 'work');
+        let loopIndex = 0;
         while (true) {
+            if(!(await this.shouldRun())) {
+                debug('debug', 'worker is not working')
+                loopIndex = 0;
+                await this.sleep(1500)
+                continue;
+            }
+
             try {
                 debug('trace', 'work loop');
                 let job = await Job.findOne({
                     where: {
-                        state: 'created'
+                        state: ['created', 'resume']
                     },
                     order: [
                         ['priority', 'DESC'],
@@ -36,31 +56,253 @@ export const WorkerController = {
 
                 if (!!job) {
                     debug('debug', job.id);
-                    job.state = 'in progress';
+                    loopIndex++;
+                    job.state = JobState['in progress'];
                     await job.save();
 
                     try {
                         // @ts-ignore
-                        await WorkerController.actions[job.type](job);
-                        debug('debug', job.details)
+                        const state = await this.actions[job.type](job);
                         job = await job.reload()
-                        job.state = 'completed';
+                        job.state = state || JobState.completed;
                         await job.save();
                         debug('debug', job.id, 'done.');
-                        await WorkerController.sleep(1000);
                     } catch (err) {
+                        if(JSON.stringify(err).toLowerCase().includes('timeout')) {
+                            loopIndex = -1;
+                        }
                         debug('debug', job.id, 'error');
-                        job.state = 'error';
+                        job.state = JobState.error;
                         job.details.error = JSON.parse(JSON.stringify(err, Object.getOwnPropertyNames(err)));
-                        job.changed('details', true);
                         await job.save();
+
+                        const parentId = (<Job<ChildJobDetails>>job).details.parentJobId
+                        if (!!parentId) {
+                            const parentJob = await Job.findByPk(parentId);
+                            if (parentJob) {
+                                parentJob.state = JobState.error;
+                                parentJob.details.error = 'In error by child : ' + job.id;
+                                await parentJob.save();
+                            }
+                        }
+
+                        const childrenIds = (<Job<ParentJobDetails>>job).details.childrenJobIds || [];
+                        for (let childId of childrenIds) {
+                            const child = await Job.findByPk(childId);
+                            if (child) {
+                                child.state = JobState.error;
+                                child.details.error = 'In error by parent : ' + job.id;
+                                await child.save();
+                            }
+                        }
+                    }
+
+                    if(loopIndex === -1 || loopIndex > 50) {
+                        debug('info', '50 jobs, we go to sleep 2 minutes')
+                        loopIndex = 0;
+                        await this.sleep(2 * 60 * 1000)
                     }
                 } else {
-                    await WorkerController.sleep(10 * 1000);
+                    await this.sleep(10 * 1000);
                 }
             } catch (e) {
                 debug('error', e);
             }
         }
     }
+
+    public async completeUrlOfSeries(job: Job<CompleteUrlOfSeriesJobDetails>) {
+        debug('trace', 'completeUrlOfSeries');
+        debug('debug', job.id);
+
+        if (job.details.state === 'initialize') {
+            const result = await this.initializeCompleteUrlOfSeries(job)
+            job.details.state = 'done';
+            await job.save();
+            return result;
+        } else if (job.details.state === 'done') {
+            return await this.setParentJobAsDoneIfNeeded(job)
+        }
+
+        throw new Error('CompleteUrlOfSeriesJob state "' + job.details.state + '" not implemented')
+    }
+
+    public async createBooksIfNotExising(job: Job<CreateBooksIfNotExisingJobDetails>) {
+        debug('trace', 'createBooksIfNotExising');
+        debug('debug', job.id);
+        debug('debug', job.details.series);
+        const series = await Series.findByPk(job.details.series)
+        if (!series) {
+            throw new Error('No series found for this job')
+        }
+        const booksUrls = await BrowserController.getBookLinksInSeriesPage(series.link);
+        const possibleEan = (series.books || []).map(b => b.europeanArticleNumber);
+
+        const bestBooksUrls = [];
+        // prefer editions in collection
+        for (const bookUrl of booksUrls) {
+            const bestUrlFound = await BrowserController.getBookOwnedEditionUrl(bookUrl, possibleEan);
+            bestBooksUrls.push(bestUrlFound || bookUrl)
+        }
+
+        for (const bookUrl of bestBooksUrls) {
+            const europeanArticleNumber = await BrowserController.getBookEuropeanArticleNumberInBookPage(bookUrl);
+            const [book] = await Book.findOrCreate({
+                where: {europeanArticleNumber}
+            })
+
+            book.link = bookUrl;
+            await book.save();
+            await series.$add('books', book)
+            await series.save();
+        }
+
+        await this.setParentJobAsDoneIfNeeded(job);
+    }
+
+    private async setParentJobAsDoneIfNeeded(job: Job<ChildJobDetails>) {
+        let parentJob = await Job.findByPk(job.details.parentJobId);
+        if (parentJob === null) {
+            throw new Error('Parent job not found');
+        } else {
+            const childrenIds = (<Job<ParentJobDetails>>parentJob).details.childrenJobIds;
+            const count = await Job.count({
+                where: {
+                    id: childrenIds,
+                    state: JobState.completed
+                }
+            });
+            // on se compte pas soi meme
+            if ((childrenIds.length -1) === count) {
+                parentJob.state = JobState.resume;
+                await parentJob.save()
+            }
+        }
+    }
+
+    private async complete(job: Job<CompleteJobDetails>) {
+        switch (job.details.state) {
+            case 'initialize': {
+                await this.initializeCompleteJob(job);
+                job.details.state = 'completeUrlOfSeries'
+                await job.save();
+                return JobState.waiting
+            }
+            case 'completeUrlOfSeries': {
+                await this.refreshAllBooksOfUser(job);
+                job.details.state = 'refreshAllBooksOfUser'
+                await job.save();
+                return JobState.waiting
+            }
+            case 'refreshAllBooksOfUser': {
+                await this.refreshAllBooksOfUser(job);
+                job.details.state = 'done'
+                await job.save();
+                return;
+            }
+            case 'done': {
+                return;
+            }
+        }
+
+        throw new Error('state not implemented');
+    }
+
+    private async upload(job: Job<UploadJobDetail>) {
+        return await BookController.upload(job)
+    }
+
+    private async initializeCompleteJob(job: Job<CompleteJobDetails>) {
+        const user = await User.findOne({where: {id: job.creatorId}})
+        if (!user) {
+            throw new Error('User not found');
+        }
+        const seriesToComplete = await BookController.getSeriesOfUser(user);
+        job.details.series = seriesToComplete.map(s => s.id);
+        job.details.childrenJobIds = job.details.childrenJobIds || [];
+
+        for (const seriesId of job.details.series) {
+            const childJob = await Job.create({
+                type: 'completeUrlOfSeries',
+                priority: 120,
+                creatorId: job.creatorId,
+                details: {
+                    parentJobId: job.id,
+                    state: 'initialize',
+                    series: seriesId
+                }
+            })
+            job.details.childrenJobIds.push(childJob.id);
+        }
+        await job.save();
+    }
+
+    private async initializeCompleteUrlOfSeries(job: Job<CompleteUrlOfSeriesJobDetails>) {
+        debug('trace', 'initializeCompleteUrlOfSeries');
+        debug('debug', job.details.series);
+        const series = await Series.findByPk(job.details.series, {
+            include: [Book]
+        })
+        if (!series) {
+            throw new Error('No series found for this job')
+        }
+        series.link = await BrowserController.completeUrlOfSeries(series);
+        await series.save();
+
+        const childJob = await Job.create({
+            type: 'createBooksIfNotExising',
+            priority: 130,
+            creatorId: job.creatorId,
+            details: {
+                state: 'initialize',
+                series: series.id,
+                parentJobId: job.id
+            }
+        })
+
+        job.details.childrenJobIds = job.details.childrenJobIds || [];
+        job.details.childrenJobIds.push(childJob.id);
+        await job.save();
+        return JobState.waiting;
+    }
+
+    private async refreshBook(job: Job<RefreshBookJobDetails>) {
+        debug('trace', 'refreshBook');
+        debug('debug', job.details.book);
+        await BrowserController.refreshBook(job.details.book.toString())
+        await this.setParentJobAsDoneIfNeeded(job);
+    }
+
+    private async refreshAllBooksOfUser(job: Job<CompleteJobDetails>) {
+        debug('trace', 'refreshAllBooksOfUser')
+        debug('debug', job.id);
+        const user = await User.findByPk(job.creatorId);
+        if (user === null) {
+            throw new Error('user not found');
+        }
+        const seriesList = await BookController.getSeriesOfUser(user);
+        const books = await BookController.getBooksFromSeries(...seriesList)
+
+        job.details.childrenJobIds = job.details.childrenJobIds || [];
+
+        for (const book of books) {
+            const childJob = await Job.create({
+                type: 'refreshBook',
+                priority: 130,
+                creatorId: job.creatorId,
+                details: {
+                    book: book.europeanArticleNumber,
+                    parentJobId: job.id
+                }
+            })
+            job.details.childrenJobIds.push(childJob.id);
+        }
+        await job.save();
+    }
+
+    private async shouldRun() {
+        return (await Config.findOne({where: {name: 'worker-is-running'}}))?.value === 'true' || false
+    }
 }
+
+export default new WorkerController();

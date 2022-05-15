@@ -10,7 +10,7 @@ block content
             each state in ['created', 'in progress', 'completed', 'error']
                 div #{state} : #{jobs.filter(j => j.state === state).length}
         .col-4
-            each type in ['complete', 'reload-complete', 'completeEach']
+            each type in ['complete']
                 div #{type} : #{jobs.filter(j => j.type === type).length}
         .col-4
             div

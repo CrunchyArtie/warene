@@ -1,7 +1,7 @@
 import express from 'express';
 import {BookController, BrowserController} from '../controllers';
 import debugFactory from 'debug';
-import {User, Job} from '../models';
+import {Job, JobState, User} from '../models';
 
 const debug = debugFactory('warene:bookRouter');
 
@@ -27,8 +27,8 @@ booksRouter.get('/own', async function (req, res, next) {
             where: {id: req.session.user!.id},
             include: [Job]
         })
-        const pending = user!.jobs.some(j => ['in progress', 'created'].includes(j.state) && (['upload', 'complete', 'reload-complete', 'completeEach'].includes(j.type)))
-        res.render('books/own', {title: 'Ma collection', books, pending});
+        const allDone = user!.jobs.every(j => [JobState.completed, JobState.error].includes(j.state))
+        res.render('books/own', {title: 'Ma collection', books, pending: !allDone });
     } catch (e) {
         debug('error', e)
         res.render('books/own', {title: 'Ma collection', books: [], pending: false, flash: {type: 'danger', title: 'Un erreur est intervenue, désolé'} });
@@ -58,7 +58,10 @@ booksRouter.get('/complete', async function (req, res, next) {
     debug('trace', 'get', '/complete')
     await Job.create({
         type: 'complete',
-        creatorId: req.session.user?.id
+        creatorId: req.session.user?.id,
+        details: {
+            state: 'initialize'
+        }
     });
 
     res.redirect('/books');

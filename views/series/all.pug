@@ -11,24 +11,29 @@ block content
         span.h1.me-2 #{title}
 
     .container
-        .row
-            each colIndex in [0, 1, 2]
-                .col
-                    each element, index in data
-                        if index % 3 === colIndex
-                            .card
-                                .card-body
-                                    .card-title #{element.series.name} (#{element.series.books.length} tomes)
-                                    .card-text
-                                        .progress
+        - var titles = {'owned' : 'Collection à jour', 'data' : 'Collection non à jour', 'inErrors' : 'Manque d\'information', 'complete' : 'Lus'}
+        each seriesTypeList in ['owned', 'data', 'inErrors', 'complete']
+            .row
+                h2 #{titles[seriesTypeList]}
+                each element, index in data[seriesTypeList]
+                    // if index % 3 === colIndex
+                    .card
+                        .card-body
+                            .card-title #{element.series.name} - #{element.series.books.length > 1 ? `${element.series.books.length} tomes de ${element.averagePagesInVolume} pages chacun` : `${element.series.books.length === 1 && (element.series.books[0].pageCount || 0) === 0 ? '?' : element.averagePagesInVolume} pages`}
+                            .card-text
+                                .progress
+                                    - element.series.books.sort((a, b) => a.volume - b.volume)
+                                    each book in element.series.books
+                                        if !book.isRead && !book.inCollection && (book.pageCount || 0) !== 0
+                                        else
                                             .progress-bar(
-                                                class=`${+element.percentRead === 100 ? 'bg-success' : ''} ${element.inError ? 'bg-danger' : ''}`
+                                                class=`
+                                                    ${((book.pageCount || 0) === 0 ? "bg-danger" : '')}
+                                                    ${((book.pageCount || 0) !== 0 ? "bg-success" : '')}
+                                                    ${((!book.isRead) && book.inCollection ? "bg-info" : '')}`
                                                 role="progressbar"
-                                                style=`width: ${element.percentRead}%;`
-                                                aria-valuenow=`${element.percentRead}`
+                                                style=`width: ${((book.pageCount || element.averagePagesInVolume)) / element.totalPages * 100}%;`
+                                                aria-valuenow=`${(book.pageCount || element.averagePagesInVolume)}`
                                                 aria-valuemin="0"
-                                                aria-valuemax="100"
-                                            ) #{element.totalRead}/#{element.totalPages}
-                                        ul
-                                            each book in element.orderedBooks
-                                                li #{book.volume} - #{book.title}
+                                                aria-valuemax=(element.totalPages)
+                                            ) #{(book.pageCount || 0) === 0 && book.isRead ? 'lu' : ''}

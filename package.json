@@ -4,15 +4,16 @@
   "private": true,
   "scripts": {
     "build": "tsc",
-    "dev": "nodemon --config nodemon.json",
+    "executor": "npm run build && node ./dist/bin/executor",
+    "executor:dev": "nodemon --config nodemon-executor.json",
     "init": "npm run build && node ./dist/bin/init",
     "init:dev": "npm run build && node --inspect ./dist/bin/init",
-    "prestart": "npm run build",
-    "start": "node ./dist/bin/serve.js",
-    "tsc": "tsc",
+    "server": "npm run build && node ./dist/bin/serve.js",
+    "server:dev": "nodemon --config nodemon.json",
     "ts-node": "ts-node",
+    "tsc": "tsc",
     "worker": "npm run build && node ./dist/bin/worker",
-    "worker:dev": "npm run build && node --inspect ./dist/bin/worker"
+    "worker:dev": "nodemon  --config nodemon-worker.json"
   },
   "dependencies": {
     "bcrypt": "^5.0.1",
