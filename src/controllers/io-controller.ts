@@ -1,8 +1,8 @@
 import {Server} from 'socket.io';
 import {io, Socket} from 'socket.io-client';
-import debugFactory from 'debug';
+import DebugFactory from '../utils/debug-factory';
 
-const debug = debugFactory('warene:IoController');
+const debug = new DebugFactory('warene:IoController');
 class IoController {
     private static instance: IoController;
 
@@ -23,17 +23,17 @@ class IoController {
     public register(io: Server) {
         io.on("connection", clientSocket => {
             // send a message to the client
-            debug('debug', 'to client: ping ?');
+            debug.debug( 'to client: ping ?');
             clientSocket.emit("ping");
 
             // receive a message from the client
             clientSocket.on("pong", (...args) => {
-                debug('debug', "from client: pong", args);
+                debug.debug( "from client: pong", args);
             });
 
             if(this.workerSocket){
                 this.workerSocket.on('ping', (...args) => {
-                    debug('debug', 'from worker: ping')
+                    debug.debug( 'from worker: ping')
                     this.workerSocket.emit('pong');
                 })
 

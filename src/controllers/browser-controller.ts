@@ -2,14 +2,14 @@ import {chromium} from 'playwright-core';
 import {ElementHandle, Page} from 'playwright';
 import {Book, RawBook, Series} from '../models';
 import BookController from './book-controller';
-import debugFactory from 'debug';
+import DebugFactory from '../utils/debug-factory';
 import {Readable} from 'stream';
 import csv from 'csv-parser';
 import moment from 'moment';
 import 'moment/locale/fr'
 moment.locale('fr')
 
-const debug = debugFactory('warene:BrowserController');
+const debug = new DebugFactory('warene:BrowserController');
 class BrowserController {
     private async usingBrowser<T> (action: (page: Page) => T): Promise<T> {
         const headless = !!process.env.HEADLESS ? process.env.HEADLESS === 'true' : true;
@@ -20,8 +20,8 @@ class BrowserController {
     }
 
     public async refreshBook (ean: string) {
-        debug('trace', 'refreshBook')
-        debug('debug', ean)
+        debug.trace( 'refreshBook')
+        debug.debug( ean)
         const theFirstBookInSecondColumnSelector = `#root > div.bubble-body > header > div > nav > div.collapse.navbar-collapse > div > div > div > div.home-search-bar.rounded-medium.input-group.bg-black.align-items-center.over-global-overlay > div.shadow.p-3.px-4.search-result-zone > div > div:nth-child(3) > div.row > a:nth-child(1)`;
         const sameBookButDifferentVersionListSelector = '#root > div.bubble-body > div.bb-background-light-grey > div:nth-child(1) > div > div.row.px-sm-3.mt-n3 > div.col-lg-8.my-3.d-flex.flex-column.justify-content-between > div.row.px-3.my-3 > div > div.row.py-2.px-md-3.d-flex.flex-row.flex-wrap.justify-content-start > div > div > div.col-9.d-flex.flex-column > div.text-muted'
         const book = await Book.findByPk(ean);
@@ -47,9 +47,9 @@ class BrowserController {
                 ])
 
                 const book = await this.processBookPage(page);
-                debug('debug', book.prettyTitle, 'done')
+                debug.debug( book.prettyTitle, 'done')
         } catch (e: any) {
-            debug('error', ean, e)
+            debug.error(ean, e)
             throw e
         }
     })
@@ -57,8 +57,8 @@ class BrowserController {
     }
 
     public async processBookPage (page: Page) {
-        debug('trace', 'processBookPage')
-        debug('debug', page.url())
+        debug.trace( 'processBookPage')
+        debug.debug( page.url())
         const authorsSelector = '#root > div.bubble-body > div.bb-background-light-grey > div:nth-child(2) > div > div.col-md-6.pt-4.pt-md-0 > table:nth-child(4) > tbody > tr:nth-child(1) > td:nth-child(2) > a';
         const titleSelector = '#root > div.bubble-body > div.bb-background-light-grey > div:nth-child(1) > div > div.row.px-sm-3.mt-n3 > div.col-lg-8.my-3.d-flex.flex-column.justify-content-between > div.d-none.d-md-flex.justify-content-between.align-items-start.px-1 > div > h1';
         const price = '#root > div.bubble-body > div.bb-background-light-grey > div:nth-child(1) > div > div.row.px-sm-3.mt-n3 > div.col-lg-8.my-3.d-flex.flex-column.justify-content-between > div.bb-large-text-size.font-weight-bold.font-weight-md-normal.my-2.px-1'
@@ -92,7 +92,7 @@ class BrowserController {
             await page.waitForTimeout(200);
             ean = await get(eanSelector)
         }
-        debug('debug', 'ean', ean);
+        debug.debug( 'ean', ean);
         const promises = [
             getAuthors(),
             ...[titleSelector,
@@ -127,8 +127,8 @@ class BrowserController {
     }
 
     public async completeUrlOfSeries (series: Series): Promise<string> {
-        debug('trace', 'getUrlOfSeries')
-        debug('debug', series.name)
+        debug.trace( 'getUrlOfSeries')
+        debug.debug( series.name)
 
         const searchBarSelector = 'nav input';
         const firstSeriesInFirstColumnSelector = `#root > div.bubble-body > header > div > nav > div.collapse.navbar-collapse > div > div > div > div.home-search-bar.rounded-medium.input-group.bg-black.align-items-center.over-global-overlay > div.shadow.p-3.px-4.search-result-zone > div > div:nth-child(1) > div.row > a`;
@@ -144,7 +144,7 @@ class BrowserController {
                 if (!someBook) {
                     throw new Error('cannot process an empty series');
                 }
-                debug('debug', someBook.europeanArticleNumber.toString())
+                debug.debug( someBook.europeanArticleNumber.toString())
                 await page.fill(searchBarSelector, someBook.europeanArticleNumber.toString())
 
                 try {
@@ -162,15 +162,15 @@ class BrowserController {
 
                 return new URL(page.url()).pathname;
             } catch (err) {
-                debug('error', err);
+                debug.error(err);
                 throw new Error('Cannot find series url');
             }
         });
     }
 
     public async getBookLinksInSeriesPage (link: string): Promise<string[]> {
-        debug('trace', 'getBookLinksInSeriesPage')
-        debug('debug', link)
+        debug.trace( 'getBookLinksInSeriesPage')
+        debug.debug( link)
         try {
 
             return await this.usingBrowser(async (page: Page) => {
@@ -210,7 +210,7 @@ class BrowserController {
                 return links as string[];
             });
         } catch (err) {
-            debug('error', err);
+            debug.error(err);
             throw new Error('Cannot find series url');
         }
     }
@@ -223,8 +223,8 @@ class BrowserController {
     }
 
     public async getBookEuropeanArticleNumberInBookPage (bookUrl: string): Promise<number> {
-        debug('trace', 'getBookEuropeanArticleNumberInBookPage')
-        debug('debug', bookUrl);
+        debug.trace( 'getBookEuropeanArticleNumberInBookPage')
+        debug.debug( bookUrl);
         const eanSelector = '#root > div.bubble-body > div.bb-background-light-grey > div:nth-child(2) > div > div.col-md-6.pt-4.pt-md-0 > table:nth-child(4) > tbody > tr:nth-child(5) > td:nth-child(2)'
 
         return await this.usingBrowser(async page => {
@@ -244,8 +244,8 @@ class BrowserController {
     }
 
     public async getBookLink(ean: string): Promise<string> {
-        debug('trace', 'getBookLink')
-        debug('debug', ean)
+        debug.trace( 'getBookLink')
+        debug.debug( ean)
         const theFirstBookInSecondColumnSelector = `#root > div.bubble-body > header > div > nav > div.collapse.navbar-collapse > div > div > div > div.home-search-bar.rounded-medium.input-group.bg-black.align-items-center.over-global-overlay > div.shadow.p-3.px-4.search-result-zone > div > div:nth-child(3) > div.row > a:nth-child(1)`;
         const sameBookButDifferentVersionListSelector = '#root > div.bubble-body > div.bb-background-light-grey > div:nth-child(1) > div > div.row.px-sm-3.mt-n3 > div.col-lg-8.my-3.d-flex.flex-column.justify-content-between > div.row.px-3.my-3 > div > div.row.py-2.px-md-3.d-flex.flex-row.flex-wrap.justify-content-start > div > div > div.col-9.d-flex.flex-column > div.text-muted'
 
@@ -272,13 +272,13 @@ class BrowserController {
             })
 
         } catch (e: any) {
-            debug('error', ean, e)
+            debug.error(ean, e)
             throw e
         }
     }
 
     public async getRawBooks(login: string, password: string) {
-        debug('trace', 'refreshBook')
+        debug.trace( 'refreshBook')
 
         return await this.usingBrowser(async (page: Page) => {
             await Promise.all([
@@ -337,8 +337,8 @@ class BrowserController {
     }
 
     public async getBookOwnedEditionUrl(bookUrl: string, possibleEan: number[]) {
-        debug('trace', 'getBookOwnedEditionUrl')
-        debug('debug', bookUrl)
+        debug.trace( 'getBookOwnedEditionUrl')
+        debug.debug( bookUrl)
 
         return await this.usingBrowser(async page => {
             await Promise.all([

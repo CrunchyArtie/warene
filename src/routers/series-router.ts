@@ -1,19 +1,19 @@
 import express from 'express';
-import debugFactory from 'debug';
+import DebugFactory from '../utils/debug-factory';
 import {Series, Book} from '../models';
 import {WorkerController} from '../controllers';
 
-const debug = debugFactory('warene:seriesRouter');
+const debug = new DebugFactory('warene:seriesRouter');
 
 export const seriesRouter = express.Router();
 
 seriesRouter.get('/', async function (req, res, next) {
-    debug('trace', 'get', '/')
+    debug.trace( 'get', '/')
     const series = await Series.findAll({include: Book});
     const arrAvg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length
     let data = series.map(s => {
         const inError = s.books.filter(b => !b.pageCount || b.pageCount === 0)
-        debug('debug', s.name, Math.round(arrAvg(s.books.map(b => b.pageCount || 0).filter(c => c !== 0))))
+        debug.debug( s.name, Math.round(arrAvg(s.books.map(b => b.pageCount || 0).filter(c => c !== 0))))
         const averagePagesInVolume = Math.round(arrAvg(s.books.map(b => b.pageCount || 0).filter(c => c !== 0))) || 100;
         const totalInError = inError.length * averagePagesInVolume;
         const totalPages = s.books.map(b => b.pageCount || 0).reduce((a, b) => a + b, 0) + totalInError;
@@ -57,8 +57,8 @@ seriesRouter.get('/', async function (req, res, next) {
 });
 
 seriesRouter.get('/complete/:id', async function (req, res, next) {
-    debug('trace', 'get', '/complete')
-    debug('debug', req.params.id)
+    debug.trace( 'get', '/complete')
+    debug.debug( req.params.id)
 
     if (!!req.params.id) {
         await WorkerController.refreshSeries(req.session.user!, +req.params.id);

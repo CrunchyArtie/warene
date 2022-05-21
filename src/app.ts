@@ -7,7 +7,7 @@ import livereload from 'livereload';
 import connectLivereload from 'connect-livereload';
 import session from 'express-session';
 import connect_session_sequelize from 'connect-session-sequelize';
-import debugFactory from 'debug';
+import DebugFactory from './utils/debug-factory';
 import {IsAuthenticated} from './middlewares';
 import {
     indexRouter,
@@ -22,7 +22,7 @@ import moment from 'moment';
 import Sequelize from './utils/sequelize';
 
 const SequelizeStore = connect_session_sequelize(session.Store);
-const debug = debugFactory('warene:app');
+const debug = new DebugFactory('warene:app');
 
 declare module 'express-session' {
     export interface SessionData {
@@ -58,7 +58,7 @@ app.use(session({
 }));
 
 if (process.env.LIVERELOAD === 'true') {
-    debug('starting Livereload', __dirname)
+    debug.debug('starting Livereload', __dirname)
     const livereloadServer = livereload.createServer();
     livereloadServer.watch(path.join(__dirname));
     livereloadServer.server.once('connection', () => {

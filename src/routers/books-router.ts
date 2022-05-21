@@ -1,25 +1,25 @@
 import express from 'express';
 import {BookController, BrowserController, WorkerController} from '../controllers';
-import debugFactory from 'debug';
+import DebugFactory from '../utils/debug-factory';
 import {Job, JobState, User} from '../models';
 
-const debug = debugFactory('warene:bookRouter');
+const debug = new DebugFactory('warene:bookRouter');
 
 export const booksRouter = express.Router();
 
 booksRouter.get('/', async function (req, res, next) {
-    debug('trace', 'get', '/')
+    debug.trace( 'get', '/')
     res.redirect('/books/own');
 });
 
 booksRouter.get('/all', async function (req, res, next) {
-    debug('trace', 'get', '/')
+    debug.trace( 'get', '/')
     const books = await BookController.getBooks();
     res.render('books/all', {title: 'Tout le contenu du site', books});
 });
 
 booksRouter.get('/own', async function (req, res, next) {
-    debug('trace', 'get', '/own')
+    debug.trace( 'get', '/own')
     try {
 
         const books = await BookController.getBooksOfUser(req.session.user!);
@@ -30,18 +30,18 @@ booksRouter.get('/own', async function (req, res, next) {
         const allDone = user!.jobs.every(j => [JobState.completed, JobState.error].includes(j.state))
         res.render('books/own', {title: 'Ma collection', books, pending: !allDone });
     } catch (e) {
-        debug('error', e)
+        debug.error(e)
         res.render('books/own', {title: 'Ma collection', books: [], pending: false, flash: {type: 'danger', title: 'Un erreur est intervenue, désolé'} });
     }
 });
 
 booksRouter.get('/upload', function (req, res, next) {
-    debug('trace', 'get', '/upload')
+    debug.trace( 'get', '/upload')
     res.render('books/upload', {title: 'Mise a jour'});
 });
 
 booksRouter.post('/upload', async function (req, res, next) {
-    debug('trace', 'post', '/upload')
+    debug.trace( 'post', '/upload')
     /* const job = */ await Job.create({
         type: 'upload',
         creatorId: req.session.user?.id,
@@ -55,7 +55,7 @@ booksRouter.post('/upload', async function (req, res, next) {
 });
 
 booksRouter.get('/complete/:id', async function (req, res, next) {
-    debug('trace', 'get', '/complete')
+    debug.trace( 'get', '/complete')
 
     if (!!req.body.id) {
         await WorkerController.refreshSeries(req.session.user!, req.body.id);
@@ -67,8 +67,8 @@ booksRouter.get('/complete/:id', async function (req, res, next) {
 });
 
 booksRouter.get('/refresh/:ean', async function (req, res, next) {
-    debug('trace', 'get', '/refresh/:ean')
-    debug('debug', req.params.ean);
+    debug.trace( 'get', '/refresh/:ean')
+    debug.debug( req.params.ean);
     await BrowserController.refreshBook(req.params.ean)
 
     res.redirect('/books#' + req.params.ean);

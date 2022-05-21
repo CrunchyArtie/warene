@@ -1,16 +1,16 @@
 import {Author, Book, Category, Collection, Job, Publisher, Series, Type, User, RawBook} from '../models';
-import debugFactory from 'debug';
+import DebugFactory from '../utils/debug-factory';
 import moment from 'moment';
 import _ from 'lodash';
 import BrowserController from './browser-controller';
 import {UploadJobDetail} from '../models';
 
-const debug = debugFactory('warene:BookController');
+const debug = new DebugFactory('warene:BookController');
 
 class BookController {
     public async toBook(rawBook: Partial<RawBook> & Pick<RawBook, 'EAN'>) {
-        debug('trace', 'toBook');
-        debug('debug', rawBook.EAN);
+        debug.trace( 'toBook');
+        debug.debug( rawBook.EAN);
         const bookData: any = {};
 
         let series;
@@ -130,13 +130,13 @@ class BookController {
         }
         await book.changed('updatedAt', true)
         await book.save();
-        debug('debug', 'toBook', book.prettyTitle.trim(), 'Done');
+        debug.debug( 'toBook', book.prettyTitle.trim(), 'Done');
 
         return book
     }
 
     public async getBooks(): Promise<Book[]> {
-        debug('trace', 'getBooks')
+        debug.trace( 'getBooks')
         const books = await Book.findAll({
             include: [Author, Publisher, Category, Collection, Series, Type],
             order: [[{model: Series, as: 'series'}, 'name']]
@@ -145,7 +145,7 @@ class BookController {
     }
 
     public async getBooksOfUser(user: User): Promise<Book[]> {
-        debug('trace', 'getBooksOfUser')
+        debug.trace( 'getBooksOfUser')
         const reLoadedUser = await User.findOne({
             where: {id: user.id},
             include: [{
@@ -157,7 +157,7 @@ class BookController {
     }
 
     public async getSeriesOfUser(user: User): Promise<Series[]> {
-        debug('trace', 'getSeriesOfUser')
+        debug.trace( 'getSeriesOfUser')
         return await Series.findAll({
             include: [{
                 model: Book,
@@ -179,7 +179,7 @@ class BookController {
      * @param job
      */
     public async upload(job: Job<UploadJobDetail>): Promise<void> {
-        debug('trace', 'upload')
+        debug.trace( 'upload')
 
         const {login, password} = job.details;
         const rawBooks = await BrowserController.getRawBooks(login, password)
@@ -191,7 +191,7 @@ class BookController {
             where: {id: job.creatorId},
             include: [Book]
         })
-        debug('info', 'new books collection size', books.length )
+        debug.info( 'new books collection size', books.length )
         await user!.$set('books', books);
         await user?.save();
     }

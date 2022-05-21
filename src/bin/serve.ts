@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import {app} from "../app";
-import debugFactory from "debug";
+import DebugFactory from "../utils/debug-factory";
 import http from "http";
 import ErrnoException = NodeJS.ErrnoException;
 import {Server} from 'socket.io';
@@ -12,7 +12,7 @@ import IoController from '../controllers/io-controller';
 /**
  * Module dependencies.
  */
-const debug = debugFactory('warene:server');
+const debug = new DebugFactory('warene:server');
 
 /**
  * Get port from environment and store in Express.
@@ -93,12 +93,12 @@ function onListening() {
   let bind;
   if (typeof address === 'string') {
     bind = 'pipe ' + address;
-    debug('Listening on ' + bind);
-    debug('address', address)
+    debug.info('Listening on ' + bind);
+    debug.info('address', address)
 
   } else {
     bind = 'port ' + address?.port;
-    debug('Listening on ' + bind);
-    debug('http://localhost:' + process.env.PORT)
+    debug.info('Listening on ' + bind);
+    debug.info('http://localhost:' + process.env.PORT)
   }
 }

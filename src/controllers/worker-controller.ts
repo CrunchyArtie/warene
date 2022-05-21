@@ -8,13 +8,13 @@ import {
     UploadJobDetail,
     User
 } from '../models';
-import debugFactory from 'debug';
+import DebugFactory from '../utils/debug-factory';
 import BookController from './book-controller';
 import BrowserController from './browser-controller';
 import '../utils/sequelize'
 import {Server} from 'socket.io';
 
-const debug = debugFactory('warene:workerController');
+const debug = new DebugFactory('warene:workerController');
 
 class WorkerController {
     private actions: { [jobName: string]: (job: Job<any>) => Promise<JobState | void> } = {
@@ -26,13 +26,14 @@ class WorkerController {
     }
 
     private sleep(ms: number) {
-        debug('trace', 'sleep');
+        debug.trace( 'sleep');
         return new Promise((resolve) => {
             setTimeout(resolve, ms);
         });
     }
 
     public async work() {
+        debug.trace( 'work')
 
         const io = new Server();
         const clients: any[] = [];
@@ -40,11 +41,11 @@ class WorkerController {
         io.on('connection', (socket) => {
             clients.push(socket);
 
-            debug('debug', 'to server: ping ?')
+            debug.debug( 'to server: ping ?')
             socket.emit('ping');
 
             socket.on('pong', (...args) => {
-                debug('debug', 'from server: pong')
+                debug.debug( 'from server: pong')
             })
         });
 
@@ -55,18 +56,18 @@ class WorkerController {
         }
         io.listen(ioPort || 3001);
 
-        debug('trace', 'work');
+        debug.trace( 'work');
         let loopIndex = 0;
         while (true) {
             if (!(await this.shouldRun())) {
-                debug('debug', 'worker is not working')
+                debug.debug( 'worker is not working')
                 loopIndex = 0;
                 await this.sleep(1500)
                 continue;
             }
 
             try {
-                debug('trace', 'work loop');
+                debug.trace( 'work loop');
                 let job = await Job.findOne({
                     where: {
                         state: ['created', 'resume']
@@ -78,7 +79,7 @@ class WorkerController {
                 })
 
                 if (!!job) {
-                    debug('debug', job.id);
+                    debug.debug( job.id);
                     loopIndex++;
                     job.state = JobState['in progress'];
                     await job.save();
@@ -91,15 +92,18 @@ class WorkerController {
                         job = await job.save();
                         // @ts-ignore
                         clients.forEach(c => c.emit('job-done', job?.toJSON()))
-                        debug('debug', job.id, 'done.');
+                        debug.debug( job.id, 'done.');
+                        debug.success( job.type, job.id, 'done with success.');
                     } catch (err) {
                         if (JSON.stringify(err).toLowerCase().includes('timeout')) {
                             loopIndex = -1;
                         }
-                        debug('debug', job.id, 'error');
+                        debug.debug( job.id, 'error');
                         job.state = JobState.error;
                         job.details.error = JSON.parse(JSON.stringify(err, Object.getOwnPropertyNames(err)));
+                        debug.error(job.details.error)
                         await job.save();
+                        debug.info( job.type, job.id, 'done with errors.');
 
                         const parentId = (<Job<ChildJobDetails>>job).details.parentJobId
                         if (!!parentId) {
@@ -123,7 +127,7 @@ class WorkerController {
                     }
 
                     if (loopIndex === -1 || loopIndex > 50) {
-                        debug('info', '50 jobs, we go to sleep 2 minutes')
+                        debug.info( '50 jobs, we go to sleep 2 minutes')
                         loopIndex = 0;
                         await this.sleep(2 * 60 * 1000)
                     }
@@ -131,14 +135,14 @@ class WorkerController {
                     await this.sleep(10 * 1000);
                 }
             } catch (e) {
-                debug('error', e);
+                debug.error(e);
             }
         }
     }
 
     public async completeUrlOfSeries(job: Job<CompleteUrlOfSeriesJobDetails>) {
-        debug('trace', 'completeUrlOfSeries');
-        debug('debug', job.id);
+        debug.trace( 'completeUrlOfSeries');
+        debug.debug( job.id);
 
         if (job.details.state === 'initialize') {
             const result = await this.initializeCompleteUrlOfSeries(job)
@@ -153,9 +157,9 @@ class WorkerController {
     }
 
     public async createBooksIfNotExising(job: Job<CreateBooksIfNotExisingJobDetails>) {
-        debug('trace', 'createBooksIfNotExising');
-        debug('debug', job.id);
-        debug('debug', job.details.series);
+        debug.trace( 'createBooksIfNotExising');
+        debug.debug( job.id);
+        debug.debug( job.details.series);
         const series = await Series.findByPk(job.details.series)
         if (!series) {
             throw new Error('No series found for this job')
@@ -186,6 +190,7 @@ class WorkerController {
     }
 
     private async setParentJobAsDoneIfNeeded(job: Job<ChildJobDetails>) {
+        debug.trace( 'setParentJobAsDoneIfNeeded')
         let parentJob = await Job.findByPk(job.details.parentJobId);
         if (parentJob === null) {
             throw new Error('Parent job not found');
@@ -206,6 +211,7 @@ class WorkerController {
     }
 
     private async complete(job: Job<CompleteJobDetails>) {
+        debug.trace( 'complete')
         switch (job.details.state) {
             case 'initialize': {
                 await this.initializeCompleteJob(job);
@@ -229,17 +235,17 @@ class WorkerController {
     }
 
     private async initializeCompleteJob(job: Job<CompleteJobDetails>) {
-        debug('trace', 'initializeCompleteJob')
-        debug('debug', job.details)
+        debug.trace( 'initializeCompleteJob')
+        debug.debug( job.details)
         const user = await User.findOne({where: {id: job.creatorId}})
         if (!user) {
             throw new Error('User not found');
         }
 
-        debug('debug', 'job.details.series', job.details.series)
-        debug('debug', '!job.details.series', !job.details.series)
-        debug('debug', 'job.details.series.length == 0', job.details.series.length == 0)
-        debug('debug', '!job.details.series || job.details.series.length == 0', !job.details.series || job.details.series.length == 0)
+        debug.debug( 'job.details.series', job.details.series)
+        debug.debug( '!job.details.series', !job.details.series)
+        debug.debug( 'job.details.series.length == 0', job.details.series.length == 0)
+        debug.debug( '!job.details.series || job.details.series.length == 0', !job.details.series || job.details.series.length == 0)
 
         if(!job.details.series || job.details.series.length == 0) {
             const seriesToComplete = await BookController.getSeriesOfUser(user);
@@ -265,8 +271,8 @@ class WorkerController {
     }
 
     private async initializeCompleteUrlOfSeries(job: Job<CompleteUrlOfSeriesJobDetails>) {
-        debug('trace', 'initializeCompleteUrlOfSeries');
-        debug('debug', job.details.series);
+        debug.trace( 'initializeCompleteUrlOfSeries');
+        debug.debug( job.details.series);
         const series = await Series.findByPk(job.details.series, {
             include: [Book]
         })
@@ -294,15 +300,15 @@ class WorkerController {
     }
 
     private async refreshBook(job: Job<RefreshBookJobDetails>) {
-        debug('trace', 'refreshBook');
-        debug('debug', job.details.book);
+        debug.trace( 'refreshBook');
+        debug.debug( job.details.book);
         await BrowserController.refreshBook(job.details.book.toString())
         await this.setParentJobAsDoneIfNeeded(job);
     }
 
     private async refreshAllBooksOfUser(job: Job<CompleteJobDetails>) {
-        debug('trace', 'refreshAllBooksOfUser')
-        debug('debug', job.id);
+        debug.trace( 'refreshAllBooksOfUser')
+        debug.debug( job.id);
         const user = await User.findByPk(job.creatorId);
         if (user === null) {
             throw new Error('user not found');
@@ -328,11 +334,12 @@ class WorkerController {
     }
 
     private async shouldRun() {
+        debug.trace('shouldRun')
         return (await Config.findOne({where: {name: 'worker-is-running'}}))?.value === 'true' || false
     }
 
     public async refreshAllSeries(user: User) {
-        debug('trace', 'refreshAllSeries')
+        debug.trace( 'refreshAllSeries')
         return await Job.create({
             type: 'complete',
             creatorId: user.id,
@@ -343,8 +350,8 @@ class WorkerController {
     }
 
     public async refreshSeries(user: User, id: number) {
-        debug('trace', 'refreshAllSeries')
-        debug('debug', id)
+        debug.trace( 'refreshAllSeries')
+        debug.debug( id)
 
         return await Job.create({
             type: 'complete',

@@ -3,12 +3,12 @@ dotenv.config();
 
 import session from 'express-session';
 import connect_session_sequelize from 'connect-session-sequelize';
-import debugFactory from 'debug';
+import DebugFactory from '../utils/debug-factory';
 import {AuthenticationController} from '../controllers';
 import {Job, User, Author, Book, BookAuthor, BookUser, Category, Collection, Publisher, Series, Type} from '../models';
 import Sequelize from '../utils/sequelize';
 import {Config} from '../models';
-const debug = debugFactory('warene:init');
+const debug = new DebugFactory('warene:init');
 
 const SequelizeStore = connect_session_sequelize(session.Store);
 
@@ -16,21 +16,21 @@ new SequelizeStore({
     db: Sequelize
 }).sync()
 
-debug('info', 'Session ok');
+debug.info( 'Session ok');
 
 Promise.all([
-    User.sync().then(() => debug('info', 'User created')),
-    Author.sync().then(() => debug('info', 'Author created')),
-    Book.sync().then(() => debug('info', 'Book created')),
-    BookAuthor.sync().then(() => debug('info', 'BookAuthor created')),
-    BookUser.sync().then(() => debug('info', 'BookUser created')),
-    Category.sync().then(() => debug('info', 'Category created')),
-    Collection.sync().then(() => debug('info', 'Collection created')),
-    Publisher.sync().then(() => debug('info', 'Publisher created')),
-    Series.sync().then(() => debug('info', 'Series created')),
-    Type.sync().then(() => debug('info', 'Type created')),
-    Job.sync().then(() => debug('info', 'Job created')),
-    Config.sync().then(() => debug('info', 'Config created'))
+    User.sync().then(() => debug.info( 'User created')),
+    Author.sync().then(() => debug.info( 'Author created')),
+    Book.sync().then(() => debug.info( 'Book created')),
+    BookAuthor.sync().then(() => debug.info( 'BookAuthor created')),
+    BookUser.sync().then(() => debug.info( 'BookUser created')),
+    Category.sync().then(() => debug.info( 'Category created')),
+    Collection.sync().then(() => debug.info( 'Collection created')),
+    Publisher.sync().then(() => debug.info( 'Publisher created')),
+    Series.sync().then(() => debug.info( 'Series created')),
+    Type.sync().then(() => debug.info( 'Type created')),
+    Job.sync().then(() => debug.info( 'Job created')),
+    Config.sync().then(() => debug.info( 'Config created'))
 ]).then(async () => {
 
     await User.findOrCreate({
@@ -41,7 +41,7 @@ Promise.all([
             password: AuthenticationController.hashPassword(process.env.ADMIN_PASSWORD || 'root')
         }
     })
-    debug('info', 'Admin created');
+    debug.info( 'Admin created');
 
     await Config.findOrCreate({
         where: {
@@ -51,5 +51,5 @@ Promise.all([
             value: 'true'
         }
     })
-    debug('info', 'Config filled');
+    debug.info( 'Config filled');
 })
