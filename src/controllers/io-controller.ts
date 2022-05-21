@@ -32,12 +32,12 @@ class IoController {
             });
 
             if(this.workerSocket){
-                this.workerSocket.on('ping', (...args) => {
+                this.workerSocket.on('ping', (..._args:any[]) => {
                     debug.debug( 'from worker: ping')
                     this.workerSocket.emit('pong');
                 })
 
-                this.workerSocket.on('job-done', args => {
+                this.workerSocket.on('job-done', (args:any[]) => {
                     clientSocket.emit('job-done', args)
                 })
             }
