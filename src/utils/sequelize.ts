@@ -3,9 +3,10 @@ import {Config, Job, Author, Book, BookAuthor, BookUser, Category, Collection, P
 
 const sequelizeInstance = new Sequelize({
     database: process.env.DATABASE_NAME || 'warene',
-    dialect: 'sqlite',
+    dialect: <any> process.env.DATABASE_DIALECT || 'sqlite',
     username: process.env.DATABASE_USERNAME || 'root',
     password: process.env.DATABASE_PASSWORD || '',
+    port: +<any>process.env.DATABASE_PORT || 5432,
     storage: process.env.DATABASE_PATH || ':memory:',
     logging: (process.env.DATABASE_LOGGING === "true") || false,
     models: [
