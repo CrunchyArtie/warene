@@ -8,6 +8,7 @@ const sequelizeInstance = new Sequelize({
     password: process.env.DATABASE_PASSWORD || '',
     port: +<any>process.env.DATABASE_PORT || 5432,
     storage: process.env.DATABASE_PATH || ':memory:',
+    host: process.env.DATABASE_PATH || 'localhost',
     logging: (process.env.DATABASE_LOGGING === "true") || false,
     models: [
         Author,

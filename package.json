@@ -6,13 +6,13 @@
     "build": "tsc",
     "executor": "npm run build && node ./dist/bin/executor",
     "executor:dev": "nodemon --config nodemon-executor.json",
-    "init": "npm run build && node ./dist/bin/init",
+    "init": "node ./dist/bin/init",
     "init:dev": "npm run build && node --inspect ./dist/bin/init",
-    "server": "npm run build && node ./dist/bin/serve.js",
+    "server": "node ./dist/bin/serve.js",
     "server:dev": "nodemon --config nodemon.json",
     "ts-node": "ts-node",
     "tsc": "tsc",
-    "worker": "npm run build && node ./dist/bin/worker",
+    "worker": "node ./dist/bin/worker",
     "worker:dev": "nodemon  --config nodemon-worker.json"
   },
   "dependencies": {
