@@ -1,4 +1,4 @@
-import {Column, ForeignKey, Model, Table} from 'sequelize-typescript';
+import {Column, DataType, ForeignKey, Model, Table} from 'sequelize-typescript';
 import {Book} from './book';
 import {User} from './user';
 
@@ -9,6 +9,6 @@ export class BookUser extends Model {
     bookId!: number
 
     @ForeignKey(() => User)
-    @Column
+    @Column({type: DataType.UUID})
     userId!: number
 }

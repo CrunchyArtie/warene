@@ -3,7 +3,7 @@ import {
     BeforeUpdate,
     BelongsTo,
     Column,
-    CreatedAt,
+    CreatedAt, DataType,
     Default,
     ForeignKey,
     Model,
@@ -30,7 +30,7 @@ export class Job<T extends JobDetails> extends Model {
     priority!: number
 
     @ForeignKey(() => User)
-    @Column
+    @Column({type: DataType.UUID})
     creatorId!: string
     @BelongsTo(() => User)
     creator!: User
