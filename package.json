@@ -12,7 +12,7 @@
     "server:dev": "nodemon --config nodemon.json",
     "ts-node": "ts-node",
     "tsc": "tsc",
-    "worker": "npx playwright install && node ./dist/bin/worker",
+    "worker": "npx playwright install && npx playwright install-deps && node ./dist/bin/worker",
     "worker:dev": "nodemon  --config nodemon-worker.json"
   },
   "dependencies": {
