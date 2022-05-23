@@ -8,7 +8,7 @@
     "executor:dev": "nodemon --config nodemon-executor.json",
     "init": "node ./dist/bin/init",
     "init:dev": "npm run build && node --inspect ./dist/bin/init",
-    "server": "node ./dist/bin/serve.js",
+    "server": "npx playwright install && node ./dist/bin/serve.js",
     "server:dev": "nodemon --config nodemon.json",
     "ts-node": "ts-node",
     "tsc": "tsc",
