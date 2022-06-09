@@ -8,11 +8,11 @@
     "executor:dev": "nodemon --config nodemon-executor.json",
     "init": "node ./dist/bin/init",
     "init:dev": "npm run build && node --inspect ./dist/bin/init",
-    "server": "node ./dist/bin/serve.js",
+    "server": "npm run build && node ./dist/bin/serve.js",
     "server:dev": "nodemon --config nodemon.json",
     "ts-node": "ts-node",
     "tsc": "tsc",
-    "worker": "npx playwright install && npx playwright install-deps && node ./dist/bin/worker",
+    "worker": "npm run build && node ./dist/bin/worker",
     "worker:dev": "nodemon  --config nodemon-worker.json"
   },
   "dependencies": {

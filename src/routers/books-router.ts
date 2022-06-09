@@ -54,11 +54,12 @@ booksRouter.post('/upload', async function (req, res, next) {
     res.redirect('/books');
 });
 
-booksRouter.get('/complete/:id', async function (req, res, next) {
-    debug.trace( 'get', '/complete')
+booksRouter.get('/complete/:id?', async function (req, res, next) {
+    debug.trace( 'get', '/complete/:id')
 
-    if (!!req.body.id) {
-        await WorkerController.refreshSeries(req.session.user!, req.body.id);
+    if (!!req.params.id) {
+        debug.debug( 'get', req.params.id)
+        await WorkerController.refreshSeries(req.session.user!, +req.params.id);
     } else {
         await WorkerController.refreshAllSeries(req.session.user!);
     }

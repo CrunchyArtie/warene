@@ -1,9 +1,14 @@
 import {
-    Book, ChildJobDetails,
+    Book,
+    ChildJobDetails,
     CompleteJobDetails,
-    CompleteUrlOfSeriesJobDetails, Config, CreateBooksIfNotExisingJobDetails,
+    CompleteUrlOfSeriesJobDetails,
+    Config,
+    CreateBooksIfNotExisingJobDetails,
     Job,
-    JobState, ParentJobDetails, RefreshBookJobDetails,
+    JobState,
+    ParentJobDetails,
+    RefreshBookJobDetails,
     Series,
     UploadJobDetail,
     User
@@ -186,7 +191,12 @@ class WorkerController {
             await series.save();
         }
 
-        await this.setParentJobAsDoneIfNeeded(job);
+        const parentJob = await Job.findByPk(job.details.parentJobId);
+        if (parentJob) {
+            parentJob.state = JobState.resume
+        } else {
+            throw new Error('Must have a parent job');
+        }
     }
 
     private async setParentJobAsDoneIfNeeded(job: Job<ChildJobDetails>) {
@@ -242,10 +252,10 @@ class WorkerController {
             throw new Error('User not found');
         }
 
-        debug.debug( 'job.details.series', job.details.series)
-        debug.debug( '!job.details.series', !job.details.series)
-        debug.debug( 'job.details.series.length == 0', job.details.series.length == 0)
-        debug.debug( '!job.details.series || job.details.series.length == 0', !job.details.series || job.details.series.length == 0)
+        debug.debug( 'job?.details?.series', job.details.series)
+        debug.debug( '!job?.details?.series', !job.details.series)
+        debug.debug( 'job?.details?.series?.length == 0', job?.details?.series?.length == 0)
+        debug.debug( '!job?.details?.series || job?.details?.series?.length == 0', !job?.details?.series || job?.details?.series?.length == 0)
 
         if(!job.details.series || job.details.series.length == 0) {
             const seriesToComplete = await BookController.getSeriesOfUser(user);
@@ -257,7 +267,7 @@ class WorkerController {
         for (const seriesId of job.details.series) {
             const childJob = await Job.create({
                 type: 'completeUrlOfSeries',
-                priority: 120,
+                priority: 110,
                 creatorId: job.creatorId,
                 details: {
                     parentJobId: job.id,
@@ -284,7 +294,7 @@ class WorkerController {
 
         const childJob = await Job.create({
             type: 'createBooksIfNotExising',
-            priority: 130,
+            priority: 90,
             creatorId: job.creatorId,
             details: {
                 state: 'initialize',
@@ -321,7 +331,7 @@ class WorkerController {
         for (const book of books) {
             const childJob = await Job.create({
                 type: 'refreshBook',
-                priority: 130,
+                priority: 80,
                 creatorId: job.creatorId,
                 details: {
                     book: book.europeanArticleNumber,
