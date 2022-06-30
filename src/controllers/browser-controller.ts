@@ -46,8 +46,8 @@ class BrowserController {
                     }).click()
                 ])
 
-                const book = await this.processBookPage(page);
-                debug.debug( book.prettyTitle, 'done')
+                const bookEdition = await this.processBookPage(page);
+                debug.debug( bookEdition.prettyTitle, 'done')
         } catch (e: any) {
             debug.error(ean, e)
             throw e
@@ -127,7 +127,7 @@ class BrowserController {
     }
 
     public async completeUrlOfSeries (series: Series): Promise<string> {
-        debug.trace( 'getUrlOfSeries')
+        debug.trace( 'completeUrlOfSeries')
         debug.debug( series.name)
 
         const searchBarSelector = 'nav input';
@@ -144,8 +144,9 @@ class BrowserController {
                 if (!someBook) {
                     throw new Error('cannot process an empty series');
                 }
-                debug.debug( someBook.europeanArticleNumber.toString())
-                await page.fill(searchBarSelector, someBook.europeanArticleNumber.toString())
+                debug.debug( someBook.edition?.europeanArticleNumber?.toString())
+                const request = someBook.edition?.europeanArticleNumber?.toString() || someBook.series.name;
+                await page.fill(searchBarSelector, someBook.edition.europeanArticleNumber.toString())
 
                 try {
                     await Promise.all([
@@ -170,7 +171,7 @@ class BrowserController {
 
     public async getBookLinksInSeriesPage (link: string): Promise<string[]> {
         debug.trace( 'getBookLinksInSeriesPage')
-        debug.debug( link)
+        debug.debug( 'link :', link)
         try {
 
             return await this.usingBrowser(async (page: Page) => {
@@ -243,40 +244,6 @@ class BrowserController {
         })
     }
 
-    public async getBookLink(ean: string): Promise<string> {
-        debug.trace( 'getBookLink')
-        debug.debug( ean)
-        const theFirstBookInSecondColumnSelector = `#root > div.bubble-body > header > div > nav > div.collapse.navbar-collapse > div > div > div > div.home-search-bar.rounded-medium.input-group.bg-black.align-items-center.over-global-overlay > div.shadow.p-3.px-4.search-result-zone > div > div:nth-child(3) > div.row > a:nth-child(1)`;
-        const sameBookButDifferentVersionListSelector = '#root > div.bubble-body > div.bb-background-light-grey > div:nth-child(1) > div > div.row.px-sm-3.mt-n3 > div.col-lg-8.my-3.d-flex.flex-column.justify-content-between > div.row.px-3.my-3 > div > div.row.py-2.px-md-3.d-flex.flex-row.flex-wrap.justify-content-start > div > div > div.col-9.d-flex.flex-column > div.text-muted'
-
-        try {
-            return await this.usingBrowser(async page => {
-                await Promise.all([
-                    page.waitForNavigation(),
-                    page.goto(this.getUrl())
-                ]);
-
-                await page.fill('nav input', ean)
-                await Promise.all([
-                    page.waitForNavigation(),
-                    page.locator(theFirstBookInSecondColumnSelector).click()
-                ]);
-
-                await Promise.all([
-                    page.waitForNavigation(),
-                    page.locator(sameBookButDifferentVersionListSelector, {
-                        hasText: ean
-                    }).click()
-                ])
-                return new URL(page.url()).pathname;
-            })
-
-        } catch (e: any) {
-            debug.error(ean, e)
-            throw e
-        }
-    }
-
     public async getRawBooks(login: string, password: string) {
         debug.trace( 'refreshBook')
 
@@ -320,6 +287,7 @@ class BrowserController {
                         csvStream.pipe(csv({
                             separator: ';'
                         }))
+                            .on('headers', (headers: string[]) => debug.debug(headers))
                             .on('data', (data) => results.push(data))
                             .on('error', (err) => rej(err))
                             .on('end', () => {

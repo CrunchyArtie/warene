@@ -1,7 +1,7 @@
 import express from 'express';
-import {BookController, BrowserController, WorkerController} from '../controllers';
+import {AuthenticationController, BookController, BrowserController, WorkerController} from '../controllers';
 import DebugFactory from '../utils/debug-factory';
-import {Job, JobState, User} from '../models';
+import {Author, Book, BookEdition, Category, Collection, Job, JobState, Series, Type, User} from '../models';
 
 const debug = new DebugFactory('warene:bookRouter');
 
@@ -14,21 +14,15 @@ booksRouter.get('/', async function (req, res, next) {
 
 booksRouter.get('/all', async function (req, res, next) {
     debug.trace( 'get', '/')
-    const books = await BookController.getBooks();
+    const books = await BookController.getBooks([{model: BookEdition, include: [Book]}, Author, Category, Author, Collection, Type]);
     res.render('books/all', {title: 'Tout le contenu du site', books});
 });
 
 booksRouter.get('/own', async function (req, res, next) {
     debug.trace( 'get', '/own')
     try {
-
         const books = await BookController.getBooksOfUser(req.session.user!);
-        const user = await User.findOne({
-            where: {id: req.session.user!.id},
-            include: [Job]
-        })
-        const allDone = user!.jobs.every(j => [JobState.completed, JobState.error].includes(j.state))
-        res.render('books/own', {title: 'Ma collection', books, pending: !allDone });
+        res.render('books/own', {title: 'Ma collection', books });
     } catch (e) {
         debug.error(e)
         res.render('books/own', {title: 'Ma collection', books: [], pending: false, flash: {type: 'danger', title: 'Un erreur est intervenue, désolé'} });
@@ -47,7 +41,7 @@ booksRouter.post('/upload', async function (req, res, next) {
         creatorId: req.session.user?.id,
         details: {
             login:req.body.login,
-            password: req.body.password
+            password: AuthenticationController.encode(req.body.password)
         }
     });
 

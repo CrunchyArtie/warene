@@ -5,7 +5,20 @@ import session from 'express-session';
 import connect_session_sequelize from 'connect-session-sequelize';
 import DebugFactory from '../utils/debug-factory';
 import {AuthenticationController} from '../controllers';
-import {Job, User, Author, Book, BookAuthor, BookUser, Category, Collection, Publisher, Series, Type} from '../models';
+import {
+    Job,
+    User,
+    Author,
+    Book,
+    BookAuthor,
+    BookUser,
+    Category,
+    Collection,
+    Publisher,
+    Series,
+    Type,
+    BookEdition
+} from '../models';
 import Sequelize from '../utils/sequelize';
 import {Config} from '../models';
 const debug = new DebugFactory('warene:init');
@@ -22,6 +35,7 @@ Promise.all([
     User.sync().then(() => debug.info( 'User created')),
     Author.sync().then(() => debug.info( 'Author created')),
     Book.sync().then(() => debug.info( 'Book created')),
+    BookEdition.sync().then(() => debug.info( 'BookEdition created')),
     BookAuthor.sync().then(() => debug.info( 'BookAuthor created')),
     BookUser.sync().then(() => debug.info( 'BookUser created')),
     Category.sync().then(() => debug.info( 'Category created')),

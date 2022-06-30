@@ -10,12 +10,9 @@ block content
         .col-1
             a(href=`/books`).btn.btn-light
                 i.bi.bi-arrow-repeat
-        if pending
-            .col.alert(class=`alert-info`) En cours de mise à jour :-)
-        else
-            .col
-                a(href='/books/upload').btn.btn-light.me-5 Mettre à jour
-                a(href='/books/complete').btn.btn-light Compléter les Series
+        .col
+            a(href='/books/upload').btn.btn-light.me-5 Mettre à jour
+            a(href='/books/complete').btn.btn-light Compléter les Series
 
     +book-table(books)
 

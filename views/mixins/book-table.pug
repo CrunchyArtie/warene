@@ -74,32 +74,31 @@ mixin book-table(books)
             tbody
                 each book, index in books
                     tr.book-line(scope='row'
-                        class=book.inCollection && book.isRead && !book.LentTo && 'table-primary'
-                        class=book.inCollection && book.isRead && !!book.LentTo && 'table-secondary'
-                        class=book.inCollection && !book.isRead && !book.LentTo && 'table-success'
-                        class=book.inCollection && !book.isRead && !!book.LentTo && 'table-danger'
-                        class=!book.inCollection && book.isRead && !book.LentTo && 'table-warning'
-                        class=!book.inCollection && book.isRead && !!book.LentTo && 'table-info'
-                        class=!book.inCollection && !book.isRead && !book.LentTo && 'table-light'
-                        class=!book.inCollection && !book.isRead && !!book.LentTo && 'table-dark'
-                        id=`${book.europeanArticleNumber}`
+                        class=book.inCollection && book.isRead && !book.isLent && 'table-primary'
+                        class=book.inCollection && book.isRead && book.isLent && 'table-secondary'
+                        class=book.inCollection && !book.isRead && !book.isLent && 'table-success'
+                        class=book.inCollection && !book.isRead && book.isLent && 'table-danger'
+                        class=!book.inCollection && book.isRead && !book.isLent && 'table-warning'
+                        class=!book.inCollection && book.isRead && book.isLent && 'table-info'
+                        class=!book.inCollection && !book.isRead && !book.isLent && 'table-light'
+                        class=!book.inCollection && !book.isRead && book.isLent && 'table-dark'
+                        id=`${book.edition.europeanArticleNumber}`
                     )
                         td #{index + 1}
-                        td.title #{book.prettyTitle}
+                        td.title #{book.edition.prettyTitle}
                         td #{book.category && book.category.name}
                         td
-                            a(href=`/goto${book.link}` target="_blank") #{book.europeanArticleNumber}
-                        // td #{book.volume}
+                            a(href=`/goto${book.edition.link}` target="_blank") #{book.edition.europeanArticleNumber}
                         td
-                            if book.publishDate
-                                | #{book.publishDate.getDate()}.#{book.publishDate.getMonth() + 1}.#{book.publishDate.getFullYear()}
-                        td #{book.publisher && book.publisher.name}
+                            if book.edition.publishDate
+                                | #{book.edition.publishDate.getDate()}.#{book.edition.publishDate.getMonth() + 1}.#{book.edition.publishDate.getFullYear()}
+                        td #{book.edition.publisher && book.edition.publisher.name}
                         td
                             each author in (book.authors || [])
                                 div #{author.name}
-                        td #{book.pageCount}
+                        td #{book.edition.pageCount}
                         td
-                            a(href=`/books/refresh/${book.europeanArticleNumber}`).btn.btn-light
+                            a(href=`/books/refresh/${book.edition.europeanArticleNumber}`).btn.btn-light
                                 i.bi.bi-arrow-repeat
     script.
         let books = [];

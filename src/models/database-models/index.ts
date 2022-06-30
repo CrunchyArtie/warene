@@ -1,5 +1,6 @@
 export * from './author';
 export * from './book';
+export * from './book-edition';
 export * from './book-author';
 export * from './book-user';
 export * from './category';

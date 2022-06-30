@@ -1,5 +1,19 @@
 import { Sequelize } from 'sequelize-typescript'
-import {Config, Job, Author, Book, BookAuthor, BookUser, Category, Collection, Publisher, Series, Type, User} from '../models';
+import {
+    Config,
+    Job,
+    Author,
+    Book,
+    BookAuthor,
+    BookUser,
+    Category,
+    Collection,
+    Publisher,
+    Series,
+    Type,
+    User,
+    BookEdition
+} from '../models';
 
 const sequelizeInstance = new Sequelize({
     database: process.env.DATABASE_NAME || 'warene',
@@ -13,6 +27,7 @@ const sequelizeInstance = new Sequelize({
     models: [
         Author,
         Book,
+        BookEdition,
         BookAuthor,
         BookUser,
         Category,

@@ -1,10 +1,10 @@
 import {Column, DataType, ForeignKey, Model, Table} from 'sequelize-typescript';
-import {Book} from './book';
 import {User} from './user';
+import {BookEdition} from './book-edition';
 
 @Table
 export class BookUser extends Model {
-    @ForeignKey(() => Book)
+    @ForeignKey(() => BookEdition)
     @Column
     bookId!: number
 

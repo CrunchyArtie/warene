@@ -10,11 +10,11 @@ jobsRouter.get('/', async function (req, res, next) {
     debug.trace( 'get', '/')
     const user = await User.findOne({
         where: {id: req.session.user!.id},
-        include: [Job]
+        include: [{all: true, nested: true}]
     })
     res.render('jobs', {
         title: 'Processus',
-        jobs: user?.jobs.sort((a, b) => b.updatedOn.getTime() - a.updatedOn.getTime())
+        jobs: user?.jobs//.sort((a, b) => b.updatedOn.getTime() - a.updatedOn.getTime())
     });
 });
 

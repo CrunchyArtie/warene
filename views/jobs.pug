@@ -28,7 +28,5 @@ block content
                         | #{job.id} #{job.type} : #{job.state} - #{job.creationDate.toISOString()}
                 .accordion-collapse.collapse(id=`collapse${job.id}` data-bs-parent="#accordion")
                     .accordion-body
-                        div
-                            span à jour le #{job.updatedOn.toISOString()}
                         div #{JSON.stringify(job.details, null, 2)}
 

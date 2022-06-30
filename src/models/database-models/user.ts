@@ -2,16 +2,14 @@ import {
     Table,
     Column,
     Model,
-    CreatedAt,
-    UpdatedAt,
     DataType,
     Unique,
     Index,
     BelongsToMany, HasMany
 } from 'sequelize-typescript'
-import {Book} from './book';
 import {BookUser} from './book-user';
 import {Job} from './job';
+import {BookEdition} from './book-edition';
 
 @Table
 export class User extends Model {
@@ -30,14 +28,8 @@ export class User extends Model {
     @Column
     password!: string
 
-    @CreatedAt
-    creationDate!: Date;
-
-    @UpdatedAt
-    updatedOn!: Date;
-
-    @BelongsToMany(() => Book, () => BookUser)
-    books!: Book[]
+    @BelongsToMany(() => BookEdition, () => BookUser)
+    books!: BookEdition[]
 
     @HasMany(() => Job, 'creatorId')
     jobs!: Job<any>[]

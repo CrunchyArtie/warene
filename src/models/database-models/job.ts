@@ -3,12 +3,11 @@ import {
     BeforeUpdate,
     BelongsTo,
     Column,
-    CreatedAt, DataType,
+    DataType,
     Default,
     ForeignKey,
     Model,
     Table,
-    UpdatedAt
 } from 'sequelize-typescript'
 import {User} from '../index';
 import {DataTypes} from 'sequelize';
@@ -38,12 +37,6 @@ export class Job<T extends JobDetails> extends Model {
     @Default({})
     @Column(DataTypes.JSON)
     details!: T
-
-    @CreatedAt
-    creationDate!: Date;
-
-    @UpdatedAt
-    updatedOn!: Date;
 
     private oldDetails!: T;
 

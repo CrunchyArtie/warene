@@ -1,17 +1,32 @@
-import {Author, Book, Category, Collection, Job, Publisher, Series, Type, User, RawBook} from '../models';
+import {
+    Author,
+    Book,
+    Category,
+    Collection,
+    Job,
+    Publisher,
+    RawBook,
+    Series,
+    Type,
+    UploadJobDetail,
+    User
+} from '../models';
 import DebugFactory from '../utils/debug-factory';
 import moment from 'moment';
 import _ from 'lodash';
 import BrowserController from './browser-controller';
-import {UploadJobDetail} from '../models';
+import {BookEdition} from '../models/database-models/book-edition';
+import {AuthenticationController} from './index';
+import {Includeable} from 'sequelize';
 
 const debug = new DebugFactory('warene:BookController');
 
 class BookController {
     public async toBook(rawBook: Partial<RawBook> & Pick<RawBook, 'EAN'>) {
-        debug.trace( 'toBook');
-        debug.debug( rawBook.EAN);
-        const bookData: any = {};
+        debug.trace('toBook');
+        debug.debug(rawBook.EAN);
+        const bookData: Partial<Pick<Book, 'volume' | 'seriesId' | 'typeId' | 'categoryId' | 'collectionId'>> = {}
+        const bookEditionData: Partial<Pick<BookEdition, 'europeanArticleNumber' | 'title' | 'publisherId' | 'publishDate' | 'price' | 'givenAddDate' | 'inCollection' | 'isRead' | 'isAutographed' | 'isOriginale' | 'lentTo' | 'link' | 'pageCount'>> = {}
 
         let series;
         if (_.has(rawBook, '﻿"Titre de la série"')) {
@@ -50,7 +65,7 @@ class BookController {
             publisher = (await Publisher.findOrCreate({
                 where: {name: rawBook.Editeur.trim()}
             }))[0]
-            bookData.publisherId = publisher.id;
+            bookEditionData.publisherId = publisher.id;
         }
 
         let authors = undefined;
@@ -73,53 +88,83 @@ class BookController {
         bookData.volume = volume;
 
         if (_.has(rawBook, 'Titre de l\'album'))
-            bookData.title = (rawBook['Titre de l\'album'] || '').trim();
+            bookEditionData.title = (rawBook['Titre de l\'album'] || '').trim();
         if (_.has(rawBook, 'EAN'))
-            bookData.europeanArticleNumber = +rawBook.EAN;
+            bookEditionData.europeanArticleNumber = +rawBook.EAN;
         if (_.has(rawBook, 'Date de publication'))
-            bookData.publishDate = moment(rawBook['Date de publication']).toDate();
+            bookEditionData.publishDate = moment(rawBook['Date de publication']).toDate();
         if (_.has(rawBook, 'Prix'))
-            bookData.price = +(rawBook.Prix?.replace('€', '')?.replace(',', '.')?.trim() || '0')
+            bookEditionData.price = +(rawBook.Prix?.replace('€', '')?.replace(',', '.')?.trim() || '0')
         if (_.has(rawBook, 'Date d\'ajout'))
-            bookData.givenAddDate = moment(rawBook['Date d\'ajout']).toDate();
+            bookEditionData.givenAddDate = moment(rawBook['Date d\'ajout']).toDate();
         if (_.has(rawBook, 'Dans ma collection'))
-            bookData.inCollection = !!rawBook['Dans ma collection'];
+            bookEditionData.inCollection = !!rawBook['Dans ma collection'];
         if (_.has(rawBook, 'Lu'))
-            bookData.isRead = !!rawBook.Lu
+            bookEditionData.isRead = !!rawBook.Lu
         if (_.has(rawBook, 'Dédicacé'))
-            bookData.isAutographed = !!rawBook.Dédicacé
+            bookEditionData.isAutographed = !!rawBook.Dédicacé
         if (_.has(rawBook, 'Edition originale'))
-            bookData.isOriginale = !!rawBook['Edition originale']
+            bookEditionData.isOriginale = !!rawBook['Edition originale']
         if (_.has(rawBook, 'Prété à'))
-            bookData.LentTo = (rawBook['Prété à'] || '').trim()
+            bookEditionData.lentTo = (rawBook['Prété à'] || '').trim()
         if (_.has(rawBook, 'pageCount'))
-            bookData.pageCount = (rawBook['pageCount'] || -1)
+            bookEditionData.pageCount = (rawBook['pageCount'] || -1)
 
         Object.entries(bookData).forEach(([key, value]) => {
+                if (value === undefined
+                    || value === null
+                    || value === -1
+                    || value === NaN
+                    || value === 0) {
+                    delete (<any>bookData)[key];
+                }
+            }
+        );
+
+        Object.entries(bookEditionData).forEach(([key, value]) => {
                 if (value === undefined
                     || value === null
                     || value === ''
                     || value === -1
                     || value === NaN
                     || value === 0) {
-                    delete bookData[key];
+                    delete (<any>bookEditionData)[key];
                 }
             }
         );
 
-        const book = (await Book.findOrCreate({
+        const bookEdition = (await BookEdition.findOrCreate({
             where: {
-                europeanArticleNumber: bookData.europeanArticleNumber
+                europeanArticleNumber: bookEditionData.europeanArticleNumber
             },
-            include: [
-                Series,
-                Type,
-                Collection,
-                Publisher,
-                Author
-            ]
+            include: [{all: true, nested: true}]
         }))[0]
 
+        let book = bookEdition.book;
+        if (!book) {
+            book = (await Book.findOrCreate({
+                where: {volume: bookData.volume, seriesId: bookData.seriesId},
+                include: [
+                    {model: BookEdition, where: {europeanArticleNumber: bookEditionData.europeanArticleNumber}},
+                    {all: true, nested: true}
+                ]
+            }))[0];
+            if (!book && !!bookEdition.title) {
+                book = (await Book.findOrCreate({
+                    where: {volume: bookData.volume, seriesId: bookData.seriesId},
+                    include: [
+                        {model: BookEdition, where: {title: bookEditionData.title}},
+                        {all: true, nested: true}
+                    ]
+                }))[0];
+            }
+            if (!book) {
+                book = await Book.create();
+            }
+            await bookEdition.$set('book', book);
+        }
+
+        await bookEdition.update(bookEditionData);
         await book.update(bookData);
 
         await book.$set('authors', []);
@@ -128,49 +173,41 @@ class BookController {
                 await book.$add('authors', author);
             }
         }
+        await bookEdition.changed('updatedAt', true)
         await book.changed('updatedAt', true)
         await book.save();
-        debug.debug( 'toBook', book.prettyTitle.trim(), 'Done');
+        const updatedBookEdition = await (await bookEdition.save()).reload({include: [{all: true, nested: true}]});
+        debug.debug('toBook', updatedBookEdition.prettyTitle.trim(), 'Done');
 
-        return book
+        return updatedBookEdition;
     }
 
-    public async getBooks(): Promise<Book[]> {
-        debug.trace( 'getBooks')
+    public async getBooks(include: Includeable[]): Promise<Book[]> {
+        debug.trace('getBooks')
+
         const books = await Book.findAll({
-            include: [Author, Publisher, Category, Collection, Series, Type],
+            include: [Series, ...include],
             order: [[{model: Series, as: 'series'}, 'name']]
         })
         return books || [];
     }
 
     public async getBooksOfUser(user: User): Promise<Book[]> {
-        debug.trace( 'getBooksOfUser')
-        const reLoadedUser = await User.findOne({
-            where: {id: user.id},
-            include: [{
-                model: Book,
-                include: [Author, Publisher, Category, Collection, Series, Type]
-            }]
-        })
-        return reLoadedUser!.books || [];
+        debug.trace('getBooksOfUser')
+
+        return await Book.findAll({
+            include: [
+                {model: BookEdition, include: [{all: true, nested: true}, {model: User, required: true}]},
+                Author,
+                {all: true, nested: true},
+            ]
+        });
     }
 
-    public async getSeriesOfUser(user: User): Promise<Series[]> {
-        debug.trace( 'getSeriesOfUser')
+    public async getSeriesOfUser(user: User, include: (Includeable | Includeable[])): Promise<Series[]> {
+        debug.trace('getSeriesOfUser')
         return await Series.findAll({
-            include: [{
-                model: Book,
-                required: true,
-                include: [
-                    {
-                        model: User,
-                        where: {id: user.id}
-                    },
-                    Author, Publisher, Category, Collection, Series, Type
-                ]
-
-            }]
+            include: include
         })
     }
 
@@ -179,25 +216,25 @@ class BookController {
      * @param job
      */
     public async upload(job: Job<UploadJobDetail>): Promise<void> {
-        debug.trace( 'upload')
+        debug.trace('upload')
 
         const {login, password} = job.details;
-        const rawBooks = await BrowserController.getRawBooks(login, password)
+        const rawBooks = await BrowserController.getRawBooks(login, AuthenticationController.decode(password))
         const books = [];
-        for(const rawBook of rawBooks) {
+        for (const rawBook of rawBooks) {
             books.push(await this.toBook(rawBook));
         }
         const user = await User.findOne({
             where: {id: job.creatorId},
-            include: [Book]
+            include: [{all: true, nested: true}]
         })
-        debug.info( 'new books collection size', books.length )
+        debug.info('new books collection size', books.length)
         await user!.$set('books', books);
         await user?.save();
     }
 
-    public async getBooksFromSeries(...seriesList: Series[]) {
-        return await Book.findAll({where: {seriesId: seriesList.map(s => s.id)}})
+    public async getBooksFromSeries(seriesList: Series[], include: Includeable | Includeable[]) {
+        return await Book.findAll({where: {seriesId: seriesList.map(s => s.id)}, include: include})
     }
 }
 

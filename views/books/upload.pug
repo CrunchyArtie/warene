@@ -2,7 +2,7 @@ extends ../layout
 
 block content
     h1 Mettre à jour ma collection
-    form(method="POST" action="./upload")
+    form(method="POST" action="./upload")#form
         .mb-3
             label.form-label(for="login") Identifiant
             input.form-control(type="text" name="login" id="login" placeholder="Identifiant" required autofocus)
@@ -10,3 +10,13 @@ block content
             label.form-label(for="password" class="sr-only") Mot de passe
             input.form-control(type="password" name="password" id="password" class="form-control" placeholder="Mot de passe" required)
         button.btn.btn-primary(type="submit") Lancer la mise a jour
+
+    script.
+        const formElement = document.getElementById('form');
+        formElement.addEventListener('submit', (event) => {
+            localStorage.setItem('login', formElement.login.value);
+            localStorage.setItem('password', formElement.password.value);
+        })
+
+        formElement.login.value = localStorage.getItem('login');
+        formElement.password.value = localStorage.getItem('password');

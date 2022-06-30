@@ -9,20 +9,20 @@ mixin series-card(series, averagePagesInVolume, totalPages)
                 .progress
                     - series.books.sort((a, b) => a.volume - b.volume)
                     each book in series.books
-                        if !book.isRead && !book.inCollection && (book.pageCount || 0) !== 0
+                        if !book.isRead && !book.inCollection && (book.edition.pageCount || 0) !== 0
                         else
                             .progress-bar(
-                                data-european-article-number=book.europeanArticleNumber
+                                data-european-article-number=book.edition.europeanArticleNumber
                                 class=`
-                                    ${((book.pageCount || 0) === 0 ? "bg-danger" : '')}
-                                    ${((book.pageCount || 0) !== 0 ? "bg-success" : '')}
+                                    ${((book.edition.pageCount || 0) === 0 ? "bg-danger" : '')}
+                                    ${((book.edition.pageCount || 0) !== 0 ? "bg-success" : '')}
                                     ${((!book.isRead) && book.inCollection ? "bg-info" : '')}`
                                 role="progressbar"
-                                style=`width: ${((book.pageCount || averagePagesInVolume)) / totalPages * 100}%;`
-                                aria-valuenow=`${(book.pageCount || averagePagesInVolume)}`
+                                style=`width: ${((book.edition.pageCount || averagePagesInVolume)) / totalPages * 100}%;`
+                                aria-valuenow=`${(book.edition.pageCount || averagePagesInVolume)}`
                                 aria-valuemin="0"
                                 aria-valuemax=(totalPages)
-                            ) #{(book.pageCount || 0) === 0 && book.isRead ? 'lu' : ''}
+                            ) #{(book.edition.pageCount || 0) === 0 && book.isRead ? 'lu' : ''}
         ul.list-group.list-group-flush
             li.list-group-item
                 if series.books.length > 1

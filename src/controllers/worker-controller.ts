@@ -1,5 +1,6 @@
 import {
     Book,
+    BookEdition,
     ChildJobDetails,
     CompleteJobDetails,
     CompleteUrlOfSeriesJobDetails,
@@ -18,6 +19,7 @@ import BookController from './book-controller';
 import BrowserController from './browser-controller';
 import '../utils/sequelize'
 import {Server} from 'socket.io';
+import sequelize from '../utils/sequelize';
 
 const debug = new DebugFactory('warene:workerController');
 
@@ -78,13 +80,13 @@ class WorkerController {
                         state: ['created', 'resume']
                     },
                     order: [
-                        ['priority', 'DESC'],
-                        ['updatedOn', 'ASC']
+                        ['priority', 'ASC'],
+                        ['id', 'ASC']
                     ]
                 })
 
                 if (!!job) {
-                    debug.debug( job.id);
+                    debug.info( job.type, job.id, 'started.');
                     loopIndex++;
                     job.state = JobState['in progress'];
                     await job.save();
@@ -169,8 +171,9 @@ class WorkerController {
         if (!series) {
             throw new Error('No series found for this job')
         }
-        const booksUrls = await BrowserController.getBookLinksInSeriesPage(series.link);
-        const possibleEan = (series.books || []).map(b => b.europeanArticleNumber);
+        const booksUrls = (await BrowserController.getBookLinksInSeriesPage(series.link)).reverse() // reverse to get the latest first (the first book is the latest);
+        debug.debug('booksUrls length: ', booksUrls.length);
+        const possibleEan = (series.books || []).map(b => b.edition.europeanArticleNumber);
 
         const bestBooksUrls = [];
         // prefer editions in collection
@@ -178,22 +181,47 @@ class WorkerController {
             const bestUrlFound = await BrowserController.getBookOwnedEditionUrl(bookUrl, possibleEan);
             bestBooksUrls.push(bestUrlFound || bookUrl)
         }
+        debug.debug('bestBooksUrls length: ', bestBooksUrls.length);
+        debug.debug('bestBooksUrls: ', bestBooksUrls);
 
         for (const bookUrl of bestBooksUrls) {
+            debug.debug(bookUrl, 'bookUrl')
             const europeanArticleNumber = await BrowserController.getBookEuropeanArticleNumberInBookPage(bookUrl);
-            const [book] = await Book.findOrCreate({
-                where: {europeanArticleNumber}
-            })
+            debug.debug('europeanArticleNumber: ', europeanArticleNumber);
+            const volume = bestBooksUrls.indexOf(bookUrl) + 1;
+            const transaction = await sequelize.transaction();
+            try {
+                const [book] = await Book.findOrCreate({where: {volume}, include: [{model: Series, where: {id: series.id}, required: true}]})
+                debug.debug('book: ', book.toJSON())
+                const bookEditions = await BookEdition.findAll({where: {bookId: book.id}, include: [Book]})
+                debug.debug('bookEditions ', bookEditions.length);
+                let bookEdition = bookEditions.find(be => +be.europeanArticleNumber === +europeanArticleNumber);
+                if (!bookEdition) {
+                    debug.debug('create :', europeanArticleNumber);
+                    bookEdition = await BookEdition.create({europeanArticleNumber});
+                    await book.$add('bookEditions', bookEdition);
+                    await book.save();
+                }
 
-            book.link = bookUrl;
-            await book.save();
-            await series.$add('books', book)
-            await series.save();
+                if(!bookEdition) {
+                    throw new Error('No bookEdition found for this book');
+                }
+
+                bookEdition.link = bookUrl;
+                await bookEdition.save();
+                await series.$add('books', book)
+                await series.save();
+                await transaction.commit();
+            } catch (e) {
+                await transaction.rollback();
+                throw e;
+            }
         }
 
         const parentJob = await Job.findByPk(job.details.parentJobId);
         if (parentJob) {
             parentJob.state = JobState.resume
+            await parentJob.save();
         } else {
             throw new Error('Must have a parent job');
         }
@@ -230,14 +258,17 @@ class WorkerController {
                 return JobState.waiting
             }
             case 'completeUrlOfSeries': {
-                await this.refreshAllBooksOfUser(job);
+                await this.refreshAllBooksOfJob(job);
                 job.details.state = 'done'
                 await job.save();
                 return;
             }
+            case 'done': {
+                return;
+            }
         }
 
-        throw new Error('state not implemented');
+        throw new Error(`state: "${job.details.state}" not implemented`);
     }
 
     private async upload(job: Job<UploadJobDetail>) {
@@ -258,7 +289,7 @@ class WorkerController {
         debug.debug( '!job?.details?.series || job?.details?.series?.length == 0', !job?.details?.series || job?.details?.series?.length == 0)
 
         if(!job.details.series || job.details.series.length == 0) {
-            const seriesToComplete = await BookController.getSeriesOfUser(user);
+            const seriesToComplete = await BookController.getSeriesOfUser(user, []);
             job.details.series = seriesToComplete.map(s => s.id);
         }
 
@@ -284,7 +315,7 @@ class WorkerController {
         debug.trace( 'initializeCompleteUrlOfSeries');
         debug.debug( job.details.series);
         const series = await Series.findByPk(job.details.series, {
-            include: [Book]
+            include: [{all: true, nested: true}]
         })
         if (!series) {
             throw new Error('No series found for this job')
@@ -316,15 +347,15 @@ class WorkerController {
         await this.setParentJobAsDoneIfNeeded(job);
     }
 
-    private async refreshAllBooksOfUser(job: Job<CompleteJobDetails>) {
-        debug.trace( 'refreshAllBooksOfUser')
+    private async refreshAllBooksOfJob(job: Job<CompleteJobDetails>) {
+        debug.trace( 'refreshAllBooksOfJob')
         debug.debug( job.id);
         const user = await User.findByPk(job.creatorId);
         if (user === null) {
             throw new Error('user not found');
         }
-        const seriesList = (await BookController.getSeriesOfUser(user)).filter(s => job.details.series.includes(s.id));
-        const books = await BookController.getBooksFromSeries(...seriesList)
+        const seriesList = await Series.findAll({where: {id: job.details.series}})
+        const books = await BookController.getBooksFromSeries(seriesList, [BookEdition])
 
         job.details.childrenJobIds = job.details.childrenJobIds || [];
 
@@ -334,7 +365,7 @@ class WorkerController {
                 priority: 80,
                 creatorId: job.creatorId,
                 details: {
-                    book: book.europeanArticleNumber,
+                    book: book.edition.europeanArticleNumber,
                     parentJobId: job.id
                 }
             })

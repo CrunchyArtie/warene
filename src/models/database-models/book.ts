@@ -1,15 +1,13 @@
 import {
     AllowNull,
-    BelongsTo,
-    BelongsToMany,
+    BelongsTo, BelongsToMany,
     Column,
-    CreatedAt,
-    ForeignKey,
-    Model, PrimaryKey,
-    Table, Unique,
-    UpdatedAt
+    ForeignKey, HasMany,
+    Model,
+    Table,
 } from 'sequelize-typescript'
-import {Author, BookAuthor, BookUser, Category, Collection, Publisher, Series, Type, User} from '../index';
+import {Author, BookAuthor, Category, Collection, Series, Type} from '../index';
+import {BookEdition} from './book-edition';
 
 @Table
 export class Book extends Model {
@@ -41,78 +39,49 @@ export class Book extends Model {
 
     @AllowNull
     @Column
-    title!: string
-
-    @Unique
-    @PrimaryKey
-    @Column
-    europeanArticleNumber!: number
-
-    @AllowNull
-    @Column
     volume!: number
 
-    @Column
-    publishDate!: Date
-
-    @ForeignKey(() => Publisher)
-    @AllowNull
-    @Column
-    publisherId!: number
-    @BelongsTo(() => Publisher)
-    publisher!: Publisher
+    @HasMany(() => BookEdition)
+    bookEditions!: BookEdition[];
 
     @BelongsToMany(() => Author, () => BookAuthor)
     authors!: Author[]
 
-    @BelongsToMany(() => User, () => BookUser)
-    owners!: User[]
+    get inCollection(): boolean {
+        return this.bookEditions.some(e => e.inCollection);
+    }
 
-    @Column
-    price!: number
+    get isRead(): boolean {
+        return this.bookEditions.some(e => e.isRead);
+    }
 
-    @Column
-    givenAddDate!: Date
+    get isAutographed(): boolean {
+        return this.bookEditions.some(e => e.isAutographed);
+    }
 
-    @Column
-    inCollection!: boolean
+    get isOriginale(): boolean {
+        return this.bookEditions.some(e => e.isOriginale);
+    }
 
-    @Column
-    isRead!: boolean
+    get isLent(): boolean {
+        return this.bookEditions.some(e => e.lentTo);
+    }
 
-    @Column
-    isAutographed!: boolean
-
-    @Column
-    isOriginale!: boolean
-
-    @Column
-    lentTo!: string
-
-    @Column
-    link!: string
-
-    @AllowNull
-    @Column
-    pageCount!: number
-
-    @CreatedAt
-    creationDate!: Date;
-
-    @UpdatedAt
-    updatedOn!: Date;
-
-    get prettyTitle() {
-        const parts = [this.series?.name, this.collection?.name];
-
-        if (!!this.volume) {
-            parts.push(this.volume.toString())
+    get lastEdition(): BookEdition {
+        if (this.bookEditions.length === 0) {
+            throw new Error('No editions found');
         }
 
-        if (parts.includes(this.title) === false)
-            parts.push(this.title)
+        return this.bookEditions.sort((a, b) => b.publishDate.getTime() - a.publishDate.getTime())[0];
 
-        return parts.filter(t => !!t).join(' - ')
+    }
+
+    get edition(): BookEdition {
+        const ownedEditions = this.bookEditions.filter(e => e.inCollection);
+        if (ownedEditions.length === 0) {
+            return this.lastEdition
+        }
+        return ownedEditions.sort((a, b) => b.publishDate.getTime() - a.publishDate.getTime())[0];
     }
 }
 
