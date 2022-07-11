@@ -8,7 +8,7 @@ block content
             span.h1.me-2 #{title}
 
         .container
-            - var titles = {'owned' : ' à lire', 'data' : ' non à acquérir', 'inErrors' : ' en manque d\'informations', 'complete' : ' lus'}
+            - var titles = {'owned' : ' à lire', 'data' : ' à acquérir', 'inErrors' : ' en manque d\'informations', 'complete' : ' lus'}
             #accordionExample.accordion
                 each seriesTypeList in ['owned', 'data', 'inErrors', 'complete']
                     .accordion-item

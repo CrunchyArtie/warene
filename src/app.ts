@@ -15,9 +15,9 @@ import {
     indexRouter,
     authRouter,
     booksRouter,
-    jobsRouter,
     seriesRouter,
     configRouter,
+    apiSeriesRouter
 } from './routers';
 import {User} from './models';
 import moment from 'moment';
@@ -86,10 +86,9 @@ app.use((req, res, next) => {
 app.use('/', indexRouter);
 app.use('/auth', authRouter);
 app.use('/books', IsAuthenticated, booksRouter);
-app.use('/jobs', IsAuthenticated, jobsRouter);
 app.use('/series', IsAuthenticated, seriesRouter);
 app.use('/config', IsAuthenticated, configRouter);
-
+app.use('/api/series', apiSeriesRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

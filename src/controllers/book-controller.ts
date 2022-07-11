@@ -18,6 +18,7 @@ import BrowserController from './browser-controller';
 import {BookEdition} from '../models/database-models/book-edition';
 import {AuthenticationController} from './index';
 import {Includeable} from 'sequelize';
+import {toVolumeNumber} from '../utils/helpers';
 
 const debug = new DebugFactory('warene:BookController');
 
@@ -82,7 +83,7 @@ class BookController {
         let volume;
         if (_.has(rawBook, 'Tome')) {
             // @ts-ignore on vient de tester si le champ existe
-            volume = (+rawBook.Tome?.split('/')[0].trim()) || 0;
+            volume = toVolumeNumber(rawBook.Tome);
             volume = volume === 0 ? 1 : volume;
         }
         bookData.volume = volume;
@@ -194,14 +195,25 @@ class BookController {
 
     public async getBooksOfUser(user: User): Promise<Book[]> {
         debug.trace('getBooksOfUser')
+        const loadedUser = (await User.findByPk(user.id, {
+            include: [{
+                model: BookEdition,
+                include: [{
+                    model: Book,
+                    include: [
+                        Author,
+                        Category,
+                        Author,
+                        Collection,
+                        Type,
+                        BookEdition
+                    ]
+                }]
+            }]
+        }));
 
-        return await Book.findAll({
-            include: [
-                {model: BookEdition, include: [{all: true, nested: true}, {model: User, required: true}]},
-                Author,
-                {all: true, nested: true},
-            ]
-        });
+        if (!loadedUser) throw new Error('User not found');
+        return loadedUser.bookEditions.map(book => book.book);
     }
 
     public async getSeriesOfUser(user: User, include: (Includeable | Includeable[])): Promise<Series[]> {
@@ -229,7 +241,7 @@ class BookController {
             include: [{all: true, nested: true}]
         })
         debug.info('new books collection size', books.length)
-        await user!.$set('books', books);
+        await user!.$set('bookEditions', books);
         await user?.save();
     }
 

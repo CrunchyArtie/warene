@@ -3,6 +3,7 @@ import {ElementHandle, Page} from 'playwright';
 import {Book, RawBook, Series} from '../models';
 import BookController from './book-controller';
 import DebugFactory from '../utils/debug-factory';
+import {toVolumeNumber} from '../utils/helpers';
 import {Readable} from 'stream';
 import csv from 'csv-parser';
 import moment from 'moment';
@@ -329,6 +330,28 @@ class BrowserController {
             }
 
             return null
+        })
+    }
+
+    public async getVolumeInBookPage(bookUrl: string) {
+        debug.trace( 'getVolumeInBookPage')
+        debug.debug(bookUrl);
+        const volumeSelector = '#root > div.bubble-body > div.bb-background-light-grey > div:nth-child(2) > div > div.col-md-6.pt-4.pt-md-0 > table:nth-child(4) > tbody > tr:nth-child(3) > td:nth-child(2)'
+
+        return await this.usingBrowser(async page => {
+            await Promise.all([
+                page.waitForNavigation(),
+                page.goto(this.getUrl(bookUrl))
+            ]);
+
+            let volume = -1;
+
+            while (volume === undefined || volume === -1) {
+                await page.waitForTimeout(200);
+                const rawVolume = await page.locator(volumeSelector).innerText({timeout: 200});
+                volume = toVolumeNumber(rawVolume);
+            }
+            return volume;
         })
     }
 }

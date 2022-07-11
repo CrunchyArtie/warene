@@ -69,10 +69,10 @@ export class Book extends Model {
 
     get lastEdition(): BookEdition {
         if (this.bookEditions.length === 0) {
-            throw new Error('No editions found');
+            throw new Error(['No editions found :', this.id, this.series?.name, this.volume].join(' '));
         }
 
-        return this.bookEditions.sort((a, b) => b.publishDate.getTime() - a.publishDate.getTime())[0];
+        return this.bookEditions.sort((a, b) => b.publishDate?.getTime() - a.publishDate?.getTime())[0];
 
     }
 
@@ -81,7 +81,7 @@ export class Book extends Model {
         if (ownedEditions.length === 0) {
             return this.lastEdition
         }
-        return ownedEditions.sort((a, b) => b.publishDate.getTime() - a.publishDate.getTime())[0];
+        return ownedEditions.sort((a, b) => b.publishDate?.getTime() - a.publishDate?.getTime())[0];
     }
 }
 

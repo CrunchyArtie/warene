@@ -29,7 +29,7 @@ export class User extends Model {
     password!: string
 
     @BelongsToMany(() => BookEdition, () => BookUser)
-    books!: BookEdition[]
+    bookEditions!: BookEdition[]
 
     @HasMany(() => Job, 'creatorId')
     jobs!: Job<any>[]

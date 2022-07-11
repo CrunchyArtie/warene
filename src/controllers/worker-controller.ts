@@ -188,7 +188,8 @@ class WorkerController {
             debug.debug(bookUrl, 'bookUrl')
             const europeanArticleNumber = await BrowserController.getBookEuropeanArticleNumberInBookPage(bookUrl);
             debug.debug('europeanArticleNumber: ', europeanArticleNumber);
-            const volume = bestBooksUrls.indexOf(bookUrl) + 1;
+            const volume = await BrowserController.getVolumeInBookPage(bookUrl);
+            debug.debug('volume: ', volume);
             const transaction = await sequelize.transaction();
             try {
                 const [book] = await Book.findOrCreate({where: {volume}, include: [{model: Series, where: {id: series.id}, required: true}]})

@@ -38,7 +38,7 @@ mixin series-card(series, averagePagesInVolume, totalPages)
                     if (series.books[0].pageCount || 0) !== 0
                         span.badge.text-bg-info.me-1 #{series.books[0].pageCount} pages
         .card-body
-            a.float-end(href=`/series/complete/${series.id}`).btn.btn-light Compléter
+            button.float-end.btn.btn-light(onclick=`complete(${series.id})`) Compléter
 
     script.
         for (const element of document.getElementsByClassName('progress-bar')) {
@@ -51,3 +51,22 @@ mixin series-card(series, averagePagesInVolume, totalPages)
             console.log(id)
             window.location.href = '/books/own#' + id
         }
+
+        function complete(seriesId) {
+            fetch('/api/series/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    seriesId: seriesId
+                })
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Erreur lors de la requête')
+                }
+            })
+        }
+
