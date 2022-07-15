@@ -1,7 +1,7 @@
 //- Declaration
 include ./tag
 
-mixin series-card(series, averagePagesInVolume, totalPages)
+mixin series-card(series, averagePagesInVolume)
     .card.mt-4
         h5.card-header #{series.name}
         .card-body
@@ -18,7 +18,7 @@ mixin series-card(series, averagePagesInVolume, totalPages)
                                     ${((book.edition.pageCount || 0) !== 0 ? "bg-success" : '')}
                                     ${((!book.isRead) && book.inCollection ? "bg-info" : '')}`
                                 role="progressbar"
-                                style=`width: ${((book.edition.pageCount || averagePagesInVolume)) / totalPages * 100}%;`
+                                style=`width: ${((book.edition.pageCount || averagePagesInVolume)) / series.getTotalPages() * 100}%;`
                                 aria-valuenow=`${(book.edition.pageCount || averagePagesInVolume)}`
                                 aria-valuemin="0"
                                 aria-valuemax=(totalPages)
@@ -32,11 +32,16 @@ mixin series-card(series, averagePagesInVolume, totalPages)
                         +tag-success #{series.booksRead.length}/#{series.books.length} lus
                         +tag-info #{series.booksInCollection.length}/#{series.books.length} acquis
 
-                    +tag-light #{averagePagesInVolume} pages / tome
                 else
-                    span.badge.text-bg-info.me-1 Tome unique
-                    if (series.books[0].pageCount || 0) !== 0
-                        span.badge.text-bg-info.me-1 #{series.books[0].pageCount} pages
+                    if series.isAllBooksRead
+                        +tag-success Tome unique
+                    else
+                        +tag-info Tome unique
+
+                +tag-light #{series.getAveragePagesPerBooks()} pages
+                    if series.books.length > 1
+                        |  / tome
+
         .card-body
             button.float-end.btn.btn-light(onclick=`complete(${series.id})`) Compléter
 

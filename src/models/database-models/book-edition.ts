@@ -2,10 +2,10 @@ import {
     AllowNull,
     BelongsTo,
     BelongsToMany,
-    Column,
+    Column, DataType,
     ForeignKey,
     Model, PrimaryKey,
-    Table, Unique,
+    Table, Unique
 } from 'sequelize-typescript'
 import {Book, BookUser, Publisher, User} from '../index';
 
@@ -23,7 +23,9 @@ export class BookEdition extends Model {
 
     @Unique
     @PrimaryKey
-    @Column
+    @Column({
+        type: DataType.BIGINT
+    })
     europeanArticleNumber!: number
 
     @Column
@@ -39,7 +41,9 @@ export class BookEdition extends Model {
     @BelongsToMany(() => User, () => BookUser)
     owners!: User[]
 
-    @Column
+    @Column({
+        type: DataType.REAL,
+    })
     price!: number
 
     @Column

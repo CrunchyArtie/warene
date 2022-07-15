@@ -5,7 +5,7 @@ import {BookEdition} from './book-edition';
 @Table
 export class BookUser extends Model {
     @ForeignKey(() => BookEdition)
-    @Column
+    @Column({type: DataType.BIGINT})
     bookId!: number
 
     @ForeignKey(() => User)

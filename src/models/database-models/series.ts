@@ -36,6 +36,29 @@ export class Series extends Model {
         return this.books.filter(b => !b.isRead)
     }
 
+    public getBooksInError() {
+        return this.books.filter(b => !b.edition.pageCount || b.edition.pageCount === 0)
+    }
 
+    public getAveragePagesPerBooks() {
+        const arrAvg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length
+        return Math.round(arrAvg(this.books.map(b => b.edition.pageCount || 0).filter(c => c !== 0))) || 100
+    }
+
+    public getTotalOfErrorsPages() {
+        return this.getBooksInError().length * this.getAveragePagesPerBooks();
+    }
+
+    public getTotalPages() {
+        return this.books.map(b => b.edition.pageCount || 0).reduce((a, b) => a + b, 0) + this.getTotalOfErrorsPages();
+    }
+
+    public getReadyToReadBooks() {
+        return this.books.filter(b => !b.isRead && /*!b.edition.lentTo &&*/ b.inCollection)
+    }
+
+    public getReadyToReadPages() {
+        return this.getReadyToReadBooks().map(b => b.edition.pageCount || 0).reduce((a, b) => a + b, 0);
+    }
 }
 

@@ -25,7 +25,6 @@ class BrowserController {
         debug.debug( ean)
         const theFirstBookInSecondColumnSelector = `#root > div.bubble-body > header > div > nav > div.collapse.navbar-collapse > div > div > div > div.home-search-bar.rounded-medium.input-group.bg-black.align-items-center.over-global-overlay > div.shadow.p-3.px-4.search-result-zone > div > div:nth-child(3) > div.row > a:nth-child(1)`;
         const sameBookButDifferentVersionListSelector = '#root > div.bubble-body > div.bb-background-light-grey > div:nth-child(1) > div > div.row.px-sm-3.mt-n3 > div.col-lg-8.my-3.d-flex.flex-column.justify-content-between > div.row.px-3.my-3 > div > div.row.py-2.px-md-3.d-flex.flex-row.flex-wrap.justify-content-start > div > div > div.col-9.d-flex.flex-column > div.text-muted'
-        const book = await Book.findByPk(ean);
         return await this.usingBrowser(async (page) => {
             try {
 
