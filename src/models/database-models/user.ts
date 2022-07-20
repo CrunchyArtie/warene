@@ -1,37 +1,22 @@
-import {
-    Table,
-    Column,
-    Model,
-    DataType,
-    Unique,
-    Index,
-    BelongsToMany, HasMany
-} from 'sequelize-typescript'
-import {BookUser} from './book-user';
 import {Job} from './job';
 import {BookEdition} from './book-edition';
+import {Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn} from 'typeorm';
 
-@Table
-export class User extends Model {
-    @Column({
-        defaultValue: DataType.UUIDV4,
-        primaryKey: true,
-        type: DataType.UUID
-    })
+@Entity()
+export class User {
+    @PrimaryGeneratedColumn('uuid')
     id!: string
 
-    @Unique
-    @Index
-    @Column
+    @Column({unique: true})
     username!: string
 
-    @Column
+    @Column()
     password!: string
 
-    @BelongsToMany(() => BookEdition, () => BookUser)
+    @ManyToMany(() => BookEdition, (bookEdition) => bookEdition.owners)
+    @JoinTable()
     bookEditions!: BookEdition[]
 
-    @HasMany(() => Job, 'creatorId')
+    @OneToMany(() => Job, (job) => job.creator)
     jobs!: Job<any>[]
-
 }

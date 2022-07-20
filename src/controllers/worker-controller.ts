@@ -17,11 +17,15 @@ import {
 import DebugFactory from '../utils/debug-factory';
 import BookController from './book-controller';
 import BrowserController from './browser-controller';
-import '../utils/sequelize'
+import '../utils/app-data-source'
 import {Server} from 'socket.io';
-import sequelize from '../utils/sequelize';
+import {AppDataSource} from '../utils/app-data-source';
+import {In} from 'typeorm';
 
 const debug = new DebugFactory('warene:workerController');
+const jobRepository = AppDataSource.getRepository(Job);
+const seriesRepository = AppDataSource.getRepository(Series);
+const configRepository = AppDataSource.getRepository(Config);
 
 class WorkerController {
     private actions: { [jobName: string]: (job: Job<any>) => Promise<JobState | void> } = {
@@ -33,14 +37,14 @@ class WorkerController {
     }
 
     private sleep(ms: number) {
-        debug.trace( 'sleep');
+        debug.trace('sleep');
         return new Promise((resolve) => {
             setTimeout(resolve, ms);
         });
     }
 
     public async work() {
-        debug.trace( 'work')
+        debug.trace('work')
 
         const io = new Server();
         const clients: any[] = [];
@@ -48,11 +52,11 @@ class WorkerController {
         io.on('connection', (socket) => {
             clients.push(socket);
 
-            debug.debug( 'to server: ping ?')
+            debug.debug('to server: ping ?')
             socket.emit('ping');
 
             socket.on('pong', (...args) => {
-                debug.debug( 'from server: pong')
+                debug.debug('from server: pong')
             })
         });
 
@@ -63,78 +67,80 @@ class WorkerController {
         }
         io.listen(ioPort || 3001);
 
-        debug.trace( 'work');
+        debug.trace('work');
         let loopIndex = 0;
         while (true) {
             if (!(await this.shouldRun())) {
-                debug.debug( 'worker is not working')
+                debug.debug('worker is not working')
                 loopIndex = 0;
                 await this.sleep(1500)
                 continue;
             }
 
             try {
-                debug.trace( 'work loop');
-                let job = await Job.findOne({
-                    where: {
-                        state: ['created', 'resume']
+                debug.trace('work loop');
+                let job = await jobRepository.findOne({
+                    where: [
+                        {state: JobState.created},
+                        {state: JobState.resume}
+                    ],
+                    order: {
+                        priority: 'ASC',
+                        id: 'ASC'
                     },
-                    order: [
-                        ['priority', 'ASC'],
-                        ['id', 'ASC']
-                    ]
+                    relations: ['creator']
                 })
 
                 if (!!job) {
-                    debug.info( job.type, job.id, 'started.');
+                    debug.info(job.type, job.id, 'started.');
                     loopIndex++;
                     job.state = JobState['in progress'];
-                    await job.save();
+                    await jobRepository.save(job);
 
                     try {
                         // @ts-ignore
                         const state = await this.actions[job.type](job);
-                        job = await job.reload()
+                        job = (await jobRepository.findOneBy({id: job.id}))!
                         job.state = state || JobState.completed;
-                        job = await job.save();
+                        job = await jobRepository.save(job);
                         // @ts-ignore
                         clients.forEach(c => c.emit('job-done', job?.toJSON()))
-                        debug.debug( job.id, 'done.');
-                        debug.success( job.type, job.id, 'done with success.');
+                        debug.debug(job.id, 'done.');
+                        debug.success(job.type, job.id, 'done with success.');
                     } catch (err) {
                         if (JSON.stringify(err).toLowerCase().includes('timeout')) {
                             loopIndex = -1;
                         }
-                        debug.debug( job.id, 'error');
+                        debug.debug(job.id, 'error');
                         job.state = JobState.error;
                         job.details.error = JSON.parse(JSON.stringify(err, Object.getOwnPropertyNames(err)));
                         debug.error(job.details.error)
-                        await job.save();
-                        debug.info( job.type, job.id, 'done with errors.');
+                        await jobRepository.save(job);
+                        debug.info(job.type, job.id, 'done with errors.');
 
                         const parentId = (<Job<ChildJobDetails>>job).details.parentJobId
                         if (!!parentId) {
-                            const parentJob = await Job.findByPk(parentId);
+                            const parentJob = await jobRepository.findOneBy({id: parentId});
                             if (parentJob) {
                                 parentJob.state = JobState.error;
                                 parentJob.details.error = 'In error by child : ' + job.id;
-                                await parentJob.save();
+                                await jobRepository.save(parentJob);
                             }
                         }
 
                         const childrenIds = (<Job<ParentJobDetails>>job).details.childrenJobIds || [];
                         for (let childId of childrenIds) {
-                            const child = await Job.findByPk(childId);
+                            const child = await jobRepository.findOneBy({id: childId});
                             if (child) {
                                 child.state = JobState.error;
                                 child.details.error = 'In error by parent : ' + job.id;
-                                await child.save();
+                                await jobRepository.save(child);
                             }
                         }
                     }
 
                     if (loopIndex === -1 || loopIndex > 50) {
-                        debug.info( '50 jobs, we go to sleep 2 minutes')
+                        debug.info('50 jobs, we go to sleep 2 minutes')
                         loopIndex = 0;
                         await this.sleep(2 * 60 * 1000)
                     }
@@ -148,13 +154,13 @@ class WorkerController {
     }
 
     public async completeUrlOfSeries(job: Job<CompleteUrlOfSeriesJobDetails>) {
-        debug.trace( 'completeUrlOfSeries');
-        debug.debug( job.id);
+        debug.trace('completeUrlOfSeries');
+        debug.debug(job.id);
 
         if (job.details.state === 'initialize') {
             const result = await this.initializeCompleteUrlOfSeries(job)
             job.details.state = 'done';
-            await job.save();
+            await jobRepository.save(job);
             return result;
         } else if (job.details.state === 'done') {
             return await this.setParentJobAsDoneIfNeeded(job)
@@ -164,10 +170,10 @@ class WorkerController {
     }
 
     public async createBooksIfNotExising(job: Job<CreateBooksIfNotExisingJobDetails>) {
-        debug.trace( 'createBooksIfNotExising');
-        debug.debug( job.id);
-        debug.debug( job.details.series);
-        const series = await Series.findByPk(job.details.series)
+        debug.trace('createBooksIfNotExising');
+        debug.debug(job.id);
+        debug.debug(job.details.series);
+        const series = await seriesRepository.findOne({where: {id: job.details.series}, relations: ['books', 'books.bookEditions']})
         if (!series) {
             throw new Error('No series found for this job')
         }
@@ -190,78 +196,91 @@ class WorkerController {
             debug.debug('europeanArticleNumber: ', europeanArticleNumber);
             const volume = await BrowserController.getVolumeInBookPage(bookUrl);
             debug.debug('volume: ', volume);
-            const transaction = await sequelize.transaction();
-            try {
-                const [book] = await Book.findOrCreate({where: {volume}, include: [{model: Series, where: {id: series.id}, required: true}]})
-                debug.debug('book: ', book.toJSON())
-                const bookEditions = await BookEdition.findAll({where: {bookId: book.id}, include: [Book]})
+            await AppDataSource.transaction(async (transactionalEntityManager) => {
+                const bookRepository = await transactionalEntityManager.getRepository(Book)
+                const bookEditionRepository = await transactionalEntityManager.getRepository(BookEdition)
+                let book = await bookRepository.findOne({
+                    where: {volume, series: {id: series.id}},
+                    relations: {series: true}
+                })
+                if (!book) {
+                    book = new Book();
+                    await transactionalEntityManager.save(book);
+                }
+                debug.debug('book: ', book.id)
+                const bookEditions = await bookEditionRepository.find({
+                    where: {book: {id: book.id}},
+                    relations: {book: true}
+                })
                 debug.debug('bookEditions ', bookEditions.length);
                 let bookEdition = bookEditions.find(be => +be.europeanArticleNumber === +europeanArticleNumber);
                 if (!bookEdition) {
                     debug.debug('create :', europeanArticleNumber);
-                    bookEdition = await BookEdition.create({europeanArticleNumber});
-                    await book.$add('bookEditions', bookEdition);
-                    await book.save();
+                    bookEdition = new BookEdition();
+                    bookEdition.europeanArticleNumber = europeanArticleNumber;
+
+                    book.bookEditions.push(bookEdition);
+                    await transactionalEntityManager.save(bookEdition);
+                    await transactionalEntityManager.save(book);
                 }
 
-                if(!bookEdition) {
+                if (!bookEdition) {
                     throw new Error('No bookEdition found for this book');
                 }
 
                 bookEdition.link = bookUrl;
-                await bookEdition.save();
-                await series.$add('books', book)
-                await series.save();
-                await transaction.commit();
-            } catch (e) {
-                await transaction.rollback();
-                throw e;
-            }
+                await transactionalEntityManager.save(bookEdition);
+                series.books.push(book)
+                await transactionalEntityManager.save(series);
+            })
         }
 
-        const parentJob = await Job.findByPk(job.details.parentJobId);
+        const parentJob = await jobRepository.findOneBy({id: job.details.parentJobId});
         if (parentJob) {
             parentJob.state = JobState.resume
-            await parentJob.save();
+            await jobRepository.save(parentJob);
         } else {
             throw new Error('Must have a parent job');
         }
     }
 
     private async setParentJobAsDoneIfNeeded(job: Job<ChildJobDetails>) {
-        debug.trace( 'setParentJobAsDoneIfNeeded')
-        let parentJob = await Job.findByPk(job.details.parentJobId);
+        debug.trace('setParentJobAsDoneIfNeeded')
+        let parentJob = await jobRepository.findOneBy({id: job.details.parentJobId});
         if (parentJob === null) {
             throw new Error('Parent job not found');
         } else {
+            debug.debug('Parent job found', parentJob.id);
             const childrenIds = (<Job<ParentJobDetails>>parentJob).details.childrenJobIds;
-            const count = await Job.count({
+            debug.debug('Children ids', childrenIds);
+            const count = await jobRepository.count({
                 where: {
-                    id: childrenIds,
+                    id: In(childrenIds),
                     state: JobState.completed
                 }
             });
+            debug.debug('Children count: ', count);
             // on se compte pas soi meme
             if ((childrenIds.length - 1) === count) {
                 parentJob.state = JobState.resume;
-                await parentJob.save()
+                await jobRepository.save(parentJob)
             }
         }
     }
 
     private async complete(job: Job<CompleteJobDetails>) {
-        debug.trace( 'complete')
+        debug.trace('complete')
         switch (job.details.state) {
             case 'initialize': {
                 await this.initializeCompleteJob(job);
                 job.details.state = 'completeUrlOfSeries'
-                await job.save();
+                await jobRepository.save(job);
                 return JobState.waiting
             }
             case 'completeUrlOfSeries': {
                 await this.refreshAllBooksOfJob(job);
                 job.details.state = 'done'
-                await job.save();
+                await jobRepository.save(job);
                 return;
             }
             case 'done': {
@@ -277,132 +296,135 @@ class WorkerController {
     }
 
     private async initializeCompleteJob(job: Job<CompleteJobDetails>) {
-        debug.trace( 'initializeCompleteJob')
-        debug.debug( job.details)
-        const user = await User.findOne({where: {id: job.creatorId}})
+        debug.trace('initializeCompleteJob')
+        debug.debug(job.details)
+        const user = job.creator
         if (!user) {
             throw new Error('User not found');
         }
 
-        debug.debug( 'job?.details?.series', job.details.series)
-        debug.debug( '!job?.details?.series', !job.details.series)
-        debug.debug( 'job?.details?.series?.length == 0', job?.details?.series?.length == 0)
-        debug.debug( '!job?.details?.series || job?.details?.series?.length == 0', !job?.details?.series || job?.details?.series?.length == 0)
+        debug.debug('job?.details?.series', job.details.series)
+        debug.debug('!job?.details?.series', !job.details.series)
+        debug.debug('job?.details?.series?.length == 0', job?.details?.series?.length == 0)
+        debug.debug('!job?.details?.series || job?.details?.series?.length == 0', !job?.details?.series || job?.details?.series?.length == 0)
 
-        if(!job.details.series || job.details.series.length == 0) {
-            const seriesToComplete = await BookController.getSeriesOfUser(user, []);
+        if (!job.details.series || job.details.series.length == 0) {
+            const seriesToComplete = await BookController.getSeriesOfUser(user);
             job.details.series = seriesToComplete.map(s => s.id);
         }
 
         job.details.childrenJobIds = job.details.childrenJobIds || [];
 
         for (const seriesId of job.details.series) {
-            const childJob = await Job.create({
-                type: 'completeUrlOfSeries',
-                priority: 110,
-                creatorId: job.creatorId,
-                details: {
-                    parentJobId: job.id,
-                    state: 'initialize',
-                    series: seriesId
-                }
-            })
+            const childJob = new Job();
+            childJob.type = 'completeUrlOfSeries';
+            childJob.priority = 110;
+            childJob.creator = job.creator;
+            childJob.details = {
+                parentJobId: job.id,
+                state: 'initialize',
+                series: seriesId
+            }
+            await jobRepository.save(childJob);
             job.details.childrenJobIds.push(childJob.id);
         }
-        await job.save();
+        await jobRepository.save(job);
     }
 
     private async initializeCompleteUrlOfSeries(job: Job<CompleteUrlOfSeriesJobDetails>) {
-        debug.trace( 'initializeCompleteUrlOfSeries');
-        debug.debug( job.details.series);
-        const series = await Series.findByPk(job.details.series, {
-            include: [{all: true, nested: true}]
-        })
+        debug.trace('initializeCompleteUrlOfSeries');
+        debug.debug(job.details.series);
+        const series = await seriesRepository.findOne({where: {id: job.details.series}, relations: ['books', 'books.bookEditions']});
         if (!series) {
             throw new Error('No series found for this job')
         }
         series.link = await BrowserController.completeUrlOfSeries(series);
-        await series.save();
+        await seriesRepository.save(series);
 
-        const childJob = await Job.create({
-            type: 'createBooksIfNotExising',
-            priority: 90,
-            creatorId: job.creatorId,
-            details: {
-                state: 'initialize',
-                series: series.id,
-                parentJobId: job.id
-            }
-        })
+        const childJob = new Job()
 
+        childJob.type = 'createBooksIfNotExising';
+        childJob.priority = 90;
+        childJob.creator = job.creator;
+        childJob.details = {
+            state: 'initialize',
+            series: series.id,
+            parentJobId: job.id
+        }
         job.details.childrenJobIds = job.details.childrenJobIds || [];
         job.details.childrenJobIds.push(childJob.id);
-        await job.save();
+
+        await jobRepository.save(job);
+        await jobRepository.save(childJob);
         return JobState.waiting;
     }
 
     private async refreshBook(job: Job<RefreshBookJobDetails>) {
-        debug.trace( 'refreshBook');
-        debug.debug( job.details.book);
+        debug.trace('refreshBook');
+        debug.debug(job.details.book);
         await BrowserController.refreshBook(job.details.book.toString())
         await this.setParentJobAsDoneIfNeeded(job);
     }
 
     private async refreshAllBooksOfJob(job: Job<CompleteJobDetails>) {
-        debug.trace( 'refreshAllBooksOfJob')
-        debug.debug( job.id);
-        const user = await User.findByPk(job.creatorId);
+        debug.trace('refreshAllBooksOfJob')
+        debug.debug(job.id);
+        const user = job.creator;
         if (user === null) {
             throw new Error('user not found');
         }
-        const seriesList = await Series.findAll({where: {id: job.details.series}})
-        const books = await BookController.getBooksFromSeries(seriesList, [BookEdition])
-
+        debug.debug('job.details.series', job.details.series)
+        const seriesList = await seriesRepository.findBy({id: In(job.details.series)})
+        const books = await BookController.getBooksFromSeries(seriesList)
+        debug.debug('books', books);
         job.details.childrenJobIds = job.details.childrenJobIds || [];
 
         for (const book of books) {
-            const childJob = await Job.create({
-                type: 'refreshBook',
-                priority: 80,
-                creatorId: job.creatorId,
-                details: {
-                    book: book.edition.europeanArticleNumber,
-                    parentJobId: job.id
-                }
-            })
+            const childJob = new Job();
+
+            childJob.type = 'refreshBook';
+            childJob.priority = 80;
+            childJob.creator = job.creator;
+            childJob.details = {
+                book: book.edition.europeanArticleNumber,
+                parentJobId: job.id
+            }
+            await jobRepository.save(childJob);
             job.details.childrenJobIds.push(childJob.id);
         }
-        await job.save();
+        await jobRepository.save(job);
     }
 
     private async shouldRun() {
         debug.trace('shouldRun')
-        return (await Config.findOne({where: {name: 'worker-is-running'}}))?.value === 'true' || false
+        return (await configRepository.findOneBy({name: 'worker-is-running'}))?.value === 'true' || false
     }
 
     public async refreshAllSeries(user: User) {
-        debug.trace( 'refreshAllSeries')
-        return await Job.create({
-            type: 'complete',
-            creatorId: user.id,
-            details: {
-                state: 'initialize'
-            }
-        });
+        debug.trace('refreshAllSeries')
+        const job = new Job()
+        job.type = 'complete';
+        job.creator = user;
+        job.details = {
+            state: 'initialize'
+        };
+        return await jobRepository.save(job);
     }
 
     public async refreshSeries(user: User, id: number) {
-        debug.trace( 'refreshAllSeries')
-        debug.debug( id)
+        debug.trace('refreshAllSeries')
+        debug.debug(id)
 
-        return await Job.create({
-            type: 'complete',
-            creatorId: user.id,
-            details: {
-                series: [id],
-                state: 'initialize'
-            }
-        });
+        const job = new Job();
+
+        job.type = 'complete';
+        job.creator = user;
+        job.details = {
+            series: [id],
+            state: 'initialize'
+        }
+
+        return await jobRepository.save(job);
     }
 }
 

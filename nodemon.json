@@ -10,6 +10,6 @@
         "views/"
     ],
     "ext": "js,json,pug,ts",
-    "exec": "node --inspect --require ts-node/register src/bin/serve.ts",
+    "exec": "node --enable-source-maps --inspect --require ts-node/register src/bin/serve.ts",
     "delay": 600
 }

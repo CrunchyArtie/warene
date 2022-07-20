@@ -1,12 +1,15 @@
-import {BelongsToMany, Column, Model, Table} from 'sequelize-typescript';
 import {Book} from './book';
-import {BookAuthor} from './book-author';
+import {Column, Entity, PrimaryGeneratedColumn, ManyToMany, JoinTable} from 'typeorm';
 
-@Table
-export class Author extends Model {
-    @Column
+@Entity()
+export class Author {
+    @PrimaryGeneratedColumn()
+    id!: number;
+
+    @Column()
     name!: string;
 
-    @BelongsToMany(() => Book, () => BookAuthor)
+    @ManyToMany(() => Book, (book) => book.authors)
+    @JoinTable()
     books!: Book[]
 }

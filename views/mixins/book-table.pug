@@ -66,7 +66,7 @@ mixin book-table(books)
                     input#filterText(onchange='filterTitle()' placeholder='Titre')
                 th(scope='col') Catégorie
                 th(scope='col') EAN
-                th(scope='col') Date
+                th(scope='col' onClick="sortByDate()") Date
                 th(scope='col') Editeur
                 th(scope='col') Auteurs
                 th(scope='col') Pages
@@ -136,4 +136,17 @@ mixin book-table(books)
         function toggleLegend() {
             showLegend = !showLegend;
             document.getElementById('legend').style.display = showLegend ? 'table' : 'none';
+        }
+    script.
+        function sortByDate() {
+            let url = new URL(window.location.href);
+
+            if (url.searchParams.get('sort') === 'date') {
+                url.searchParams.set('direction', url.searchParams.get('direction') === 'asc' ? 'desc' : 'asc');
+            } else {
+                url.searchParams.set('sort', 'date');
+                url.searchParams.set('direction', 'asc');
+            }
+
+            window.location.href = url.href;
         }

@@ -1,50 +1,30 @@
-import {
-    AllowNull,
-    BelongsTo, BelongsToMany,
-    Column,
-    ForeignKey, HasMany,
-    Model,
-    Table,
-} from 'sequelize-typescript'
-import {Author, BookAuthor, Category, Collection, Series, Type} from '../index';
-import {BookEdition} from './book-edition';
+import {Author, Category, Collection, Series, Type, BookEdition} from '../index';
+import {Column, Entity, JoinTable, ManyToMany, ManyToOne, OneToMany, PrimaryGeneratedColumn} from 'typeorm';
 
-@Table
-export class Book extends Model {
-    @ForeignKey(() => Series)
-    @AllowNull
-    @Column
-    seriesId!: number
-    @BelongsTo(() => Series)
-    series!: Series
+@Entity()
+export class Book {
+    @PrimaryGeneratedColumn()
+    id!: number
 
-    @ForeignKey(() => Type)
-    @AllowNull
-    @Column
-    typeId!: number
-    @BelongsTo(() => Type)
-    type!: Type
-
-    @ForeignKey(() => Collection)
-    @Column
-    collectionId!: number
-    @BelongsTo(() => Collection)
-    collection!: Collection
-
-    @ForeignKey(() => Category)
-    @Column
-    categoryId!: number
-    @BelongsTo(() => Category)
-    category!: Category
-
-    @AllowNull
-    @Column
+    @Column({nullable: true})
     volume!: number
 
-    @HasMany(() => BookEdition)
+    @ManyToOne(() => Series, (series) => series.books)
+    series!: Series
+
+    @ManyToOne(() => Type, (type) => type.books)
+    type!: Type
+
+    @ManyToOne(() => Collection, (collection) => collection.books,)
+    collection!: Collection
+
+    @ManyToOne(() => Category, (category) => category.books)
+    category!: Category
+
+    @OneToMany(() => BookEdition, (bookEdition) => bookEdition.book)
     bookEditions!: BookEdition[];
 
-    @BelongsToMany(() => Author, () => BookAuthor)
+    @ManyToMany(() => Author, (author) => author.books)
     authors!: Author[]
 
     get inCollection(): boolean {

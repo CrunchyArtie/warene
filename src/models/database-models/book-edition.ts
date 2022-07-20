@@ -1,75 +1,55 @@
-import {
-    AllowNull,
-    BelongsTo,
-    BelongsToMany,
-    Column, DataType,
-    ForeignKey,
-    Model, PrimaryKey,
-    Table, Unique
-} from 'sequelize-typescript'
-import {Book, BookUser, Publisher, User} from '../index';
+import {Book, Publisher, User} from '../index';
+import {Column, Entity, ManyToMany, ManyToOne, PrimaryColumn} from 'typeorm';
+import DebugFactory from '../../utils/debug-factory';
 
-@Table
-export class BookEdition extends Model {
-    @ForeignKey(() => Book)
-    @Column
-    bookId!: number
-    @BelongsTo(() => Book)
-    book!: Book
+const debug = new DebugFactory('warene:BookEdition');
 
-    @AllowNull
-    @Column
-    title?: string
-
-    @Unique
-    @PrimaryKey
-    @Column({
-        type: DataType.BIGINT
-    })
+@Entity()
+export class BookEdition {
+    @PrimaryColumn('bigint')
     europeanArticleNumber!: number
 
-    @Column
+    @Column({nullable: true})
+    title?: string
+
+    @Column()
     publishDate!: Date
 
-    @ForeignKey(() => Publisher)
-    @AllowNull
-    @Column
-    publisherId!: number
-    @BelongsTo(() => Publisher)
-    publisher!: Publisher
-
-    @BelongsToMany(() => User, () => BookUser)
-    owners!: User[]
-
-    @Column({
-        type: DataType.REAL,
-    })
+    @Column("real")
     price!: number
 
-    @Column
+    @Column()
     givenAddDate!: Date
 
-    @Column
+    @Column()
     inCollection!: boolean
 
-    @Column
+    @Column()
     isRead!: boolean
 
-    @Column
+    @Column()
     isAutographed!: boolean
 
-    @Column
+    @Column()
     isOriginale!: boolean
 
-    @Column
+    @Column({nullable: true})
     lentTo!: string
 
-    @Column
+    @Column({nullable: true})
     link!: string
 
-    @AllowNull
-    @Column
+    @Column({nullable: true})
     pageCount!: number
+
+    @ManyToOne(() => Book, (book) => book.bookEditions)
+    book!: Book
+
+    @ManyToOne(() => Publisher, (publisher) => publisher.bookEditions)
+    publisher!: Publisher
+
+    @ManyToMany(() => User, (user) => user.bookEditions)
+    owners!: User[]
 
     get prettyTitle() {
         const parts = [this.book?.series?.name, this.book?.collection?.name];
@@ -80,6 +60,7 @@ export class BookEdition extends Model {
 
         if (!!this.title && parts.includes(this.title) === false)
             parts.push(this.title)
+        debug.debug(parts);
 
         return parts.filter(t => !!t).join(' - ')
     }

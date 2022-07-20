@@ -1,15 +1,18 @@
-import {Column, HasMany, Model, Table} from 'sequelize-typescript';
 import {Book} from './book';
+import {Column, Entity, OneToMany, PrimaryGeneratedColumn} from 'typeorm';
 
-@Table
-export class Series extends Model {
-    @Column
+@Entity()
+export class Series {
+    @PrimaryGeneratedColumn()
+    id!: number;
+
+    @Column()
     name!: string
 
-    @HasMany(() => Book)
+    @OneToMany(() => Book, (book) => book.series)
     books!: Book[]
 
-    @Column
+    @Column({nullable: true})
     link!: string
 
     get isAllBooksInCollection() {

@@ -8,7 +8,6 @@ import cookieParser from 'cookie-parser';
 import livereload from 'livereload';
 import connectLivereload from 'connect-livereload';
 import session from 'express-session';
-import connect_session_sequelize from 'connect-session-sequelize';
 import DebugFactory from './utils/debug-factory';
 import {IsAuthenticated} from './middlewares';
 import {
@@ -21,11 +20,12 @@ import {
 } from './routers';
 import {User} from './models';
 import moment from 'moment';
-import Sequelize from './utils/sequelize';
+import {TypeormStore} from 'connect-typeorm';
+import {AppDataSource} from './utils/app-data-source';
+import {Session} from './models/database-models/session';
 
-const SequelizeStore = connect_session_sequelize(session.Store);
 const debug = new DebugFactory('warene:app');
-
+const sessionRepository = AppDataSource.getRepository(Session);
 declare module 'express-session' {
     export interface SessionData {
         user: User;
@@ -49,10 +49,14 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use(bodyParser.urlencoded({extended: true}));
 
 const ninetyDay = 90 * 24 * 60 * 60 * 1000;
+
+
 app.use(session({
-    store: new SequelizeStore({
-        db: Sequelize
-    }),
+    store: new TypeormStore({
+        cleanupLimit: 2,
+        limitSubquery: false, // If using MariaDB.
+        ttl: 86400
+    }).connect(sessionRepository),
     secret: process.env.SESSION_SECRET || 'thisismysecrctekeyfhrgfgrfrty84fwir767',
     saveUninitialized: true,
     cookie: {maxAge: ninetyDay},

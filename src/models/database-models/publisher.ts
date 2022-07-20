@@ -1,12 +1,15 @@
-import {Column, HasMany, Model, Table} from 'sequelize-typescript';
 import {BookEdition} from './book-edition';
+import {Column, Entity, OneToMany, PrimaryGeneratedColumn} from 'typeorm';
 
-@Table
-export class Publisher extends Model {
-    @Column
+@Entity()
+export class Publisher {
+    @PrimaryGeneratedColumn()
+    id!: number;
+
+    @Column()
     name!: string
 
-    @HasMany(() => BookEdition)
-    books!: BookEdition[]
+    @OneToMany(() => BookEdition, (bookEdition) => bookEdition.publisher)
+    bookEditions!: BookEdition[]
 }
 

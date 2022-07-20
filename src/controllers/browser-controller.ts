@@ -1,6 +1,6 @@
 import {chromium} from 'playwright-core';
 import {ElementHandle, Page} from 'playwright';
-import {Book, RawBook, Series} from '../models';
+import {RawBook, Series} from '../models';
 import BookController from './book-controller';
 import DebugFactory from '../utils/debug-factory';
 import {toVolumeNumber} from '../utils/helpers';
@@ -145,7 +145,7 @@ class BrowserController {
                     throw new Error('cannot process an empty series');
                 }
                 debug.debug( someBook.edition?.europeanArticleNumber?.toString())
-                const request = someBook.edition?.europeanArticleNumber?.toString() || someBook.series.name;
+                // const request = someBook.edition?.europeanArticleNumber?.toString() || someBook.series.name;
                 await page.fill(searchBarSelector, someBook.edition.europeanArticleNumber.toString())
 
                 try {

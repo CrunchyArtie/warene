@@ -2,17 +2,18 @@ import express from 'express';
 import DebugFactory from '../utils/debug-factory';
 import {Series, Book, BookEdition} from '../models';
 import {WorkerController} from '../controllers';
+import {AppDataSource} from '../utils/app-data-source';
 
 const debug = new DebugFactory('warene:seriesRouter');
-
+const seriesRepository = AppDataSource.getRepository(Series);
 export const seriesRouter = express.Router();
 
 seriesRouter.get('/', async function (req, res, next) {
     debug.trace( 'get', '/')
-    const seriesList = await Series.findAll({include: [{model: Book, include: [BookEdition]}]});
+    const seriesList = await seriesRepository.find({relations: {books: {bookEditions: {book: true}}}});
     debug.debug( 'seriesList.length', seriesList.length);
-    debug.debug( 'mémoire', seriesList.find(s => s.name.includes('Mémoire'))?.books[0].edition.pageCount);
-    debug.debug( 'mémoire', seriesList.find(s => s.name.includes('Mémoire'))?.getReadyToReadPages());
+    // debug.debug( 'mémoire', seriesList.find(s => s.name.includes('Mémoire'))?.books[0].edition.pageCount);
+    // debug.debug( 'mémoire', seriesList.find(s => s.name.includes('Mémoire'))?.getReadyToReadPages());
     let data = seriesList.slice()
 
     const complete = data.filter(s => s.isAllBooksRead).sort((a, b) => a.name < b.name ? -1 : 1);

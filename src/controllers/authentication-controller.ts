@@ -1,7 +1,9 @@
 import bcrypt from 'bcrypt';
 import Cryptr from 'cryptr';
 import {User} from '../models';
+import {AppDataSource} from '../utils/app-data-source';
 
+const userRepository = AppDataSource.getRepository(User);
 
 class AuthenticationController {
     private cryptr: Cryptr;
@@ -11,9 +13,7 @@ class AuthenticationController {
     }
 
     public async authenticate (username: string, password: string): Promise<User | null> {
-        const user = await User.findOne({
-            where: {username}
-        })
+        const user = await userRepository.findOneBy({username})
 
         if (!user) {
             return null;

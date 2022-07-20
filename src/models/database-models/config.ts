@@ -1,10 +1,13 @@
-import {Column, Model, Table} from 'sequelize-typescript';
+import {Column, Entity, PrimaryGeneratedColumn} from 'typeorm';
 
-@Table
-export class Config extends Model {
-    @Column
+@Entity()
+export class Config {
+    @PrimaryGeneratedColumn()
+    id!: number;
+
+    @Column()
     name!: string;
 
-    @Column
+    @Column()
     value!: string
 }
