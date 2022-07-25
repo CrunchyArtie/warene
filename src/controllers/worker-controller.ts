@@ -201,7 +201,7 @@ class WorkerController {
                 const bookEditionRepository = await transactionalEntityManager.getRepository(BookEdition)
                 let book = await bookRepository.findOne({
                     where: {volume, series: {id: series.id}},
-                    relations: {series: true}
+                    relations: ['series', 'bookEditions']
                 })
                 if (!book) {
                     book = new Book();
