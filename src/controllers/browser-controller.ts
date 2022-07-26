@@ -223,7 +223,7 @@ class BrowserController {
         return (baseUrl + suffix)
     }
 
-    public async getBookEuropeanArticleNumberInBookPage (bookUrl: string): Promise<number> {
+    public async getBookEuropeanArticleNumberInBookPage (bookUrl: string): Promise<string> {
         debug.trace( 'getBookEuropeanArticleNumberInBookPage')
         debug.debug( bookUrl);
         const eanSelector = '#root > div.bubble-body > div.bb-background-light-grey > div:nth-child(2) > div > div.col-md-6.pt-4.pt-md-0 > table:nth-child(4) > tbody > tr:nth-child(5) > td:nth-child(2)'
@@ -240,7 +240,7 @@ class BrowserController {
                 await page.waitForTimeout(200);
                 ean = await page.locator(eanSelector).innerText({timeout: 200});
             }
-            return +ean;
+            return +ean + '';
         })
     }
 
@@ -304,7 +304,7 @@ class BrowserController {
         })
     }
 
-    public async getBookOwnedEditionUrl(bookUrl: string, possibleEan: number[]) {
+    public async getBookOwnedEditionUrl(bookUrl: string, possibleEan: string[]) {
         debug.trace( 'getBookOwnedEditionUrl')
         debug.debug( bookUrl)
 

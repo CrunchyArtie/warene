@@ -1,6 +1,6 @@
 import {
     Author,
-    Book,
+    Book, BookData, BookEditionData,
     Category,
     Collection,
     Job,
@@ -36,8 +36,9 @@ class BookController {
     public async toBook(rawBook: Partial<RawBook> & Pick<RawBook, 'EAN'>) {
         debug.trace('toBook');
         debug.debug(rawBook.EAN);
-        const bookData: Partial<Pick<Book, 'volume' | 'series' | 'type' | 'category' | 'collection'>> = {}
-        const bookEditionData: Partial<Pick<BookEdition, 'europeanArticleNumber' | 'title' | 'publisher' | 'publishDate' | 'price' | 'givenAddDate' | 'inCollection' | 'isRead' | 'isAutographed' | 'isOriginale' | 'lentTo' | 'link' | 'pageCount'>> = {}
+
+        const bookData: BookData = {}
+        const bookEditionData: BookEditionData = {}
 
         let series;
         if (_.has(rawBook, '﻿"Titre de la série"')) {
@@ -59,33 +60,33 @@ class BookController {
             const name = rawBook.Type.trim();
             type = (await typeRepository.findOneBy({name}))
             if (!type) {
-                debug.debug('3','type not found, creating it', type);
+                debug.debug('3', 'type not found, creating it', type);
                 type = typeRepository.create({name})
                 type = await typeRepository.save(type)
             }
             bookData.type = type;
         }
-        debug.debug('4','type', type);
+        debug.debug('4', 'type', type);
 
         let collection = undefined;
         if (!!rawBook.Collection) {
             const name = rawBook.Collection.trim();
             collection = (await collectionRepository.findOneBy({name}))
             if (!collection) {
-                debug.debug('5','collection not found, creating it', collection);
+                debug.debug('5', 'collection not found, creating it', collection);
                 collection = collectionRepository.create({name})
                 collection = await collectionRepository.save(collection)
             }
             bookData.collection = collection;
         }
-        debug.debug('6','collection', collection);
+        debug.debug('6', 'collection', collection);
 
         let category = undefined;
         if (!!rawBook.Catégory) {
             const name = rawBook.Catégory.trim();
             category = (await categoryRepository.findOneBy({name}))
             if (!category) {
-                debug.debug('7','category not found, creating it', category);
+                debug.debug('7', 'category not found, creating it', category);
                 category = categoryRepository.create({name})
                 category = await categoryRepository.save(category)
             }
@@ -104,7 +105,7 @@ class BookController {
             }
             bookEditionData.publisher = publisher;
         }
-        debug.debug('9','publisher', publisher);
+        debug.debug('9', 'publisher', publisher);
 
         let authors = undefined;
         if (_.has(rawBook, 'Auteurs')) {
@@ -113,7 +114,7 @@ class BookController {
                 let name = rawAuthor.trim();
                 let author = await authorRepository.findOneBy({name});
                 if (!author) {
-                    debug.debug('10','author not found, creating it', author);
+                    debug.debug('10', 'author not found, creating it', author);
                     author = authorRepository.create({name})
                     author = await authorRepository.save(author)
                 }
@@ -121,7 +122,7 @@ class BookController {
                 authors.push(author);
             }
         }
-        debug.debug('11','authors', authors);
+        debug.debug('11', 'authors', authors);
 
         let volume;
         if (_.has(rawBook, 'Tome')) {
@@ -135,7 +136,7 @@ class BookController {
         if (_.has(rawBook, 'Titre de l\'album'))
             bookEditionData.title = (rawBook['Titre de l\'album'] || '').trim();
         if (_.has(rawBook, 'EAN'))
-            bookEditionData.europeanArticleNumber = +rawBook.EAN;
+            bookEditionData.europeanArticleNumber = +rawBook.EAN + '';
         if (_.has(rawBook, 'Date de publication'))
             bookEditionData.publishDate = moment(rawBook['Date de publication']).toDate();
         if (_.has(rawBook, 'Prix'))
@@ -154,7 +155,7 @@ class BookController {
             bookEditionData.lentTo = (rawBook['Prété à'] || '').trim()
         if (_.has(rawBook, 'pageCount'))
             bookEditionData.pageCount = (rawBook['pageCount'] || -1)
-        debug.debug('13','bookEditionData', bookEditionData);
+        debug.debug('13', 'bookEditionData', bookEditionData);
 
         Object.entries(bookData).forEach(([key, value]) => {
                 if (value === undefined
@@ -166,7 +167,7 @@ class BookController {
                 }
             }
         );
-        debug.debug('14','bookData', bookData);
+        debug.debug('14', 'bookData', bookData);
 
         Object.entries(bookEditionData).forEach(([key, value]) => {
                 if (value === undefined
@@ -183,51 +184,64 @@ class BookController {
 
         let bookEdition = await bookEditionRepository.findOne({
             where: {europeanArticleNumber: bookEditionData.europeanArticleNumber},
-            relations: ['book.series']});
+            relations: ['book.series']
+        });
+
         if (!bookEdition) {
             debug.debug(16, 'no bookEdition found, creating one', bookEditionData);
-            bookEdition = await bookEditionRepository.create(bookEditionData);
+            bookEdition = new BookEdition(bookEditionData);
+            bookEdition = await bookEditionRepository.create(bookEdition);
         }
+
         let book: Book | null = bookEdition.book;
         if (!book) {
             book = await bookRepository.findOne({
                 where: {
                     volume: bookData.volume,
-                    series: {id: bookData.series!.id},
-                    bookEditions: {europeanArticleNumber: bookEdition.europeanArticleNumber}
+                    series: {id: bookData.series!.id}
+                    // bookEditions: {europeanArticleNumber: bookEdition.europeanArticleNumber}
                 },
-                relations: {bookEditions: true, series: true}
+                relations: ['bookEditions', 'series']
             });
-            if (!book && !!bookEdition.title) {
-                book = await bookRepository.findOne({
-                    where: {
-                        volume: bookData.volume,
-                        series: {id: bookData.series!.id},
-                        bookEditions: {title: bookEdition.title}
-                    },
-                    relations: {bookEditions: true, series: true}
-                });
-            }
+
+            // if (!book && !!bookEdition.title) {
+            //     book = await bookRepository.findOne({
+            //         where: {
+            //             volume: bookData.volume,
+            //             series: {id: bookData.series!.id},
+            //             bookEditions: {title: bookEdition.title}
+            //         },
+            //         relations: {bookEditions: true, series: true}
+            //     });
+            // }
+
             if (!book) {
-                debug.debug(17,'no book found, creating one', book);
-                book = bookRepository.create();
+                debug.debug(17, 'no book found, creating one', book);
+                book = new Book(bookData);
                 book = await bookRepository.save(book);
             }
             bookEdition.book = book;
         }
 
-        // _.assign(book, bookData);
-        // _.assign(bookEdition, bookEditionData);
-
         debug.debug(18, 'book', book);
         debug.debug(19, 'bookEdition', bookEdition);
-        await bookRepository.update(book.id, bookData);
+        Object.assign(bookEdition, bookEditionData);
+        Object.assign(book, bookData);
         book.authors = authors || [];
-        await bookRepository.save(book);
-        await bookEditionRepository.update(bookEdition.europeanArticleNumber, bookEditionData);
-        debug.debug(20,'toBook', bookEdition.prettyTitle.trim(), 'Done');
+        book = await bookRepository.save(book);
+        // bookEdition = await bookEditionRepository.save(bookEdition);
+        bookEdition.book = book;
+        bookEdition = await bookEditionRepository.save(bookEdition);
 
-        return bookEdition;
+        debug.debug(20, 'book.bookEditions', book.bookEditions);
+        debug.debug(21, 'bookEdition.book', bookEdition.book);
+        bookEdition = await bookEditionRepository.findOne({
+            where: {europeanArticleNumber: bookEdition.europeanArticleNumber},
+            relations: ['book.series']
+        });
+        debug.debug(20, 'toBook', bookEdition?.prettyTitle.trim(), 'Done');
+
+        return bookEdition!;
     }
 
     public async getBooks(): Promise<Book[]> {
@@ -239,33 +253,44 @@ class BookController {
 
     public async getBooksOfUser(user: User): Promise<Book[]> {
         debug.trace('getBooksOfUser')
+        debug.debug('user', user.id)
+        const reloadedUser = await AppDataSource.getRepository(User).findOneOrFail({
+            where: {id: user.id}, relations: [
+                // 'bookEditions',
+                // 'bookEditions.publisher',
+                'bookEditions.book.bookEditions.publisher',
+                'bookEditions.book.series',
+                'bookEditions.book.authors',
+                'bookEditions.book.category',
+                'bookEditions.book.type',
+                'bookEditions.book.collection'
 
-        const books = await bookRepository.find({
-            where: {
-                bookEditions: {
-                    owners: {id: user.id}
-                }
-            },
-            relations: {
-                bookEditions: {
-                    owners: true,
-                    publisher: true,
-                    book: {
-                        series: true,
-                        authors: true,
-                        category: true,
-                        type: true,
-                        collection: true,
-                    }
-                },
-                series: true,
-                authors: true,
-                category: true,
-                type: true,
-                collection: true,
-            }
-        })
-        return books || [];
+            ]
+        });
+        debug.debug('reloadedUser.bookEditions.map(b => b.book)[0]', reloadedUser.bookEditions.map(b => b.book)[0])
+        return reloadedUser.bookEditions.map(bookEdition => bookEdition.book);
+        // const books = await bookRepository.find({
+        //     where: {
+        //         bookEditions: {
+        //             owners: {id: user.id}
+        //         }
+        //     },
+        //     relations: [
+        //         'series',
+        //         'authors',
+        //         'category',
+        //         'type',
+        //         'collection',
+        //         'bookEditions.owners',
+        //         'bookEditions.publisher',
+        //         'bookEditions.book.series',
+        //         'bookEditions.book.authors',
+        //         'bookEditions.book.category',
+        //         'bookEditions.book.type',
+        //         'bookEditions.book.collection',
+        //     ]
+        // })
+        // return books || [];
     }
 
     public async getSeriesOfUser(user: User): Promise<Series[]> {
@@ -292,7 +317,7 @@ class BookController {
         }
         const user = await userRepository.findOne({
             where: {id: job.creator.id},
-            relations: {bookEditions:  true}
+            relations: {bookEditions: true}
         })
         debug.debug('job.creator', job.creator);
         debug.info('new books collection size', bookEditions.length)

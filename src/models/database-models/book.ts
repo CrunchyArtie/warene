@@ -1,12 +1,19 @@
 import {Author, Category, Collection, Series, Type, BookEdition} from '../index';
 import {Column, Entity, JoinTable, ManyToMany, ManyToOne, OneToMany, PrimaryGeneratedColumn} from 'typeorm';
 
+export type BookData = Partial<Pick<Book, 'volume' | 'series' | 'type' | 'category' | 'collection'>>;
+
 @Entity()
 export class Book {
+
+    constructor(data: BookData = {}) {
+        Object.assign(this, data);
+    }
+
     @PrimaryGeneratedColumn()
     id!: number
 
-    @Column({nullable: true})
+    @Column({nullable: false})
     volume!: number
 
     @ManyToOne(() => Series, (series) => series.books)

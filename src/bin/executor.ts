@@ -18,7 +18,7 @@ AppDataSource.initialize()
         // here you can start to work with your database
 
 
-        BrowserController.getBookOwnedEditionUrl('/planetes-tome-1/album/ccAgKV1LRE/q83by91xEqBHcY', [9782809450798]).then((result) => {
+        BrowserController.getBookOwnedEditionUrl('/planetes-tome-1/album/ccAgKV1LRE/q83by91xEqBHcY', ['9782809450798']).then((result) => {
             debug.info(result);
         }).catch((err) => {
             console.error(err);

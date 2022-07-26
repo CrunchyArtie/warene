@@ -204,8 +204,9 @@ class WorkerController {
                     relations: ['series', 'bookEditions']
                 })
                 if (!book) {
-                    book = new Book();
-                    await transactionalEntityManager.save(book);
+                    debug.debug('book not found, creating it', {volume, series: {id: series.id}})
+                    book = new Book({volume});
+                    book = await transactionalEntityManager.save(book);
                 }
                 debug.debug('book: ', book.id)
                 const bookEditions = await bookEditionRepository.find({
@@ -218,7 +219,7 @@ class WorkerController {
                     debug.debug('create :', europeanArticleNumber);
                     bookEdition = new BookEdition();
                     bookEdition.europeanArticleNumber = europeanArticleNumber;
-
+                    book.bookEditions = book.bookEditions || [];
                     book.bookEditions.push(bookEdition);
                     await transactionalEntityManager.save(bookEdition);
                     await transactionalEntityManager.save(book);

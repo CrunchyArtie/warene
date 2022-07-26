@@ -4,33 +4,40 @@ import DebugFactory from '../../utils/debug-factory';
 
 const debug = new DebugFactory('warene:BookEdition');
 
+export type BookEditionData = Partial<Pick<BookEdition, 'europeanArticleNumber' | 'title' | 'publisher' | 'publishDate' | 'price' | 'givenAddDate' | 'inCollection' | 'isRead' | 'isAutographed' | 'isOriginale' | 'lentTo' | 'link' | 'pageCount'>>;
+
 @Entity()
 export class BookEdition {
+
+    constructor(data: BookEditionData = {}) {
+        Object.assign(this, data);
+    }
+
     @PrimaryColumn('bigint')
-    europeanArticleNumber!: number
+    europeanArticleNumber!: string
 
     @Column({nullable: true})
     title?: string
 
-    @Column()
+    @Column({nullable: true})
     publishDate!: Date
 
-    @Column("real")
+    @Column({type: "real", nullable: true})
     price!: number
 
-    @Column()
+    @Column({nullable: true})
     givenAddDate!: Date
 
-    @Column()
+    @Column({nullable: true})
     inCollection!: boolean
 
-    @Column()
+    @Column({nullable: true})
     isRead!: boolean
 
-    @Column()
+    @Column({nullable: true})
     isAutographed!: boolean
 
-    @Column()
+    @Column({nullable: true})
     isOriginale!: boolean
 
     @Column({nullable: true})
@@ -62,7 +69,7 @@ export class BookEdition {
             parts.push(this.title)
         debug.debug(parts);
 
-        return parts.filter(t => !!t).join(' - ')
+        return parts.filter(t => !!t).join(' - ') || 'Unknown';
     }
 }
 
