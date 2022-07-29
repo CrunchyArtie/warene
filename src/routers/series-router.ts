@@ -10,7 +10,10 @@ export const seriesRouter = express.Router();
 
 seriesRouter.get('/', async function (req, res, next) {
     debug.trace( 'get', '/')
-    const seriesList = await seriesRepository.find({relations: {books: {bookEditions: {book: true}}}});
+    const rawSeriesList = await seriesRepository.find({relations:['books.bookEditions.book']});
+    const badSeriesList = rawSeriesList.filter(series => series.books.length === 0 || series.books.some(book => book.bookEditions.length === 0));
+    debug.warn('badSeriesList', badSeriesList);
+    const seriesList = rawSeriesList.filter(series => !badSeriesList.includes(series));
     debug.debug( 'seriesList.length', seriesList.length);
     // debug.debug( 'mémoire', seriesList.find(s => s.name.includes('Mémoire'))?.books[0].edition.pageCount);
     // debug.debug( 'mémoire', seriesList.find(s => s.name.includes('Mémoire'))?.getReadyToReadPages());
