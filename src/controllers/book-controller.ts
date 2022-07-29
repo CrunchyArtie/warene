@@ -1,6 +1,9 @@
 import {
     Author,
-    Book, BookData, BookEditionData,
+    Book,
+    BookData,
+    BookEdition,
+    BookEditionData,
     Category,
     Collection,
     Job,
@@ -15,7 +18,6 @@ import DebugFactory from '../utils/debug-factory';
 import moment from 'moment';
 import _ from 'lodash';
 import BrowserController from './browser-controller';
-import {BookEdition} from '../models';
 import {AuthenticationController} from './index';
 import {toVolumeNumber} from '../utils/helpers';
 import {AppDataSource} from '../utils/app-data-source';
@@ -321,8 +323,9 @@ class BookController {
         })
         debug.debug('job.creator', job.creator);
         debug.info('new books collection size', bookEditions.length)
-        user!.bookEditions = bookEditions;
-        await bookEditionRepository.save(bookEditions);
+        user!.bookEditions = [];
+        await userRepository.save(user!);
+        user!.bookEditions = await bookEditionRepository.save(bookEditions);
         await userRepository.save(user!);
     }
 

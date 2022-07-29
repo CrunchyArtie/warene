@@ -13,7 +13,7 @@ export class Book {
     @PrimaryGeneratedColumn()
     id!: number
 
-    @Column({nullable: false})
+    @Column({nullable: false, type: "real"})
     volume!: number
 
     @ManyToOne(() => Series, (series) => series.books)
